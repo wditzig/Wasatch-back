@@ -7,6 +7,12 @@ A satirical, retro downhill skiing & snowboarding game for iOS and Android, set 
 
 ---
 
+## ▶ Play in your browser
+
+**https://wditzig.github.io/Wasatch-back/** works on phones and desktop, with nothing to install.
+
+Every push rebuilds and redeploys this page automatically (`.github/workflows/web.yml`). For the best experience on a phone, open it in Chrome or Safari, then *Add to Home Screen* so it runs full-screen. Sound starts after your first tap (browsers require that).
+
 ## Engine: Godot 4.3 (GL Compatibility renderer)
 
 | Why Godot | |
