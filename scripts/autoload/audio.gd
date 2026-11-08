@@ -9,6 +9,7 @@ var _streams := {}
 var _players: Array[AudioStreamPlayer] = []
 var _music: AudioStreamPlayer
 var _hiss: AudioStreamPlayer
+var _engine: AudioStreamPlayer
 var _music_thread_task := -1
 var _music_stream: AudioStreamWAV
 
@@ -27,8 +28,13 @@ func _ready() -> void:
 	_hiss.bus = "SFX"
 	_hiss.volume_db = -80
 	add_child(_hiss)
+	_engine = AudioStreamPlayer.new()
+	_engine.bus = "SFX"
+	_engine.volume_db = -80
+	add_child(_engine)
 	_build_sfx()
 	_hiss.stream = _streams["hiss"]
+	_engine.stream = _streams["engine"]
 	apply_volumes()
 	Game.settings_changed.connect(apply_volumes)
 	_music_thread_task = WorkerThreadPool.add_task(_build_music)
@@ -82,6 +88,17 @@ func set_hiss(amount: float) -> void:
 		_hiss.play()
 	_hiss.volume_db = lerpf(-30.0, -10.0, clampf(amount, 0, 1))
 	_hiss.pitch_scale = lerpf(0.8, 1.3, clampf(amount, 0, 1))
+
+## Chip's snowmobile. amount 0..1 (proximity), pitch rises with speed.
+func set_engine(amount: float, pitch := 1.0) -> void:
+	if amount <= 0.01:
+		if _engine.playing:
+			_engine.stop()
+		return
+	if not _engine.playing:
+		_engine.play()
+	_engine.volume_db = lerpf(-34.0, -14.0, clampf(amount, 0, 1))
+	_engine.pitch_scale = clampf(pitch, 0.7, 1.6)
 
 func set_music_pitch(p: float) -> void:
 	_music.pitch_scale = p
@@ -171,6 +188,22 @@ func _build_sfx() -> void:
 		lp += (randf_range(-1, 1) - lp) * 0.18
 		b[i] = lp * 0.5
 	_streams["hiss"] = _wav(b, true)
+	# Looping two-stroke snowmobile putter: low sawtooth, chopped at 18 Hz,
+	# with a little noise. 0.5 s loop; 56 Hz and 18 Hz both fit it exactly.
+	b = PackedFloat32Array()
+	var n := RATE / 2
+	b.resize(n)
+	var lp2 := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var saw := 2.0 * fmod(t * 56.0, 1.0) - 1.0
+		var chop := 0.55 + 0.45 * signf(sin(TAU * 18.0 * t))
+		var nz := randf_range(-1, 1) * 0.25
+		lp2 += ((saw + nz) * chop - lp2) * 0.35
+		b[i] = lp2 * 0.45
+	_streams["engine"] = _wav(b, true)
+	# Short snowmobile skid for the capture.
+	b = PackedFloat32Array(); _tone(b, 0, 0.35, 1800, 600, 2, 0.4); _tone(b, 0, 0.3, 120, 70, 0, 0.12, 0.3); _streams["skid"] = _wav(b)
 
 ## Background chiptune loop (Am - F - C - G - Am - F - G - E), built on a worker thread.
 func _build_music() -> void:

@@ -31,7 +31,7 @@ func _ready() -> void:
 	panels["about"] = _build_about()
 	for p in panels.values():
 		p["root"].visible = false
-	for a in OS.get_cmdline_user_args():
+	for a in Game.dev_args():
 		if a.begins_with("--open="):
 			_open(a.substr(7))
 		elif a == "--autoplay":

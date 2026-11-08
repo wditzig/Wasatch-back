@@ -20,7 +20,17 @@ const CLOSE_CALL_GAP := 16.0
 const DIFFICULTY_FULL_M := 4500.0
 const ZOOM := 1.2
 
-enum State { PLAYING, OVER }
+enum State { PLAYING, CAPTURE, OVER }
+
+## Rotating game-over copy, only used when Chip makes the catch.
+const CHIP_MESSAGES := [
+	"Chip Lodgeworth III bought the mountain. Ski access is now included with luxury homes starting at $8.2 million.",
+	"Your favorite line is now Lot 14 of Loftside Estates. HOA dues: $6,500/month. Skiing: members only.",
+	"Chip bought the trailhead, the parking lot and the snow. Public access is available by appointment.",
+	"Congratulations! You've been upgraded to 'guest.' Day passes are $389 with a member referral.",
+	"This run is now a gated community. Your powder stash is someone's third backyard.",
+	"Chip rezoned your season pass as a timeshare. Blackout dates: every day it snows.",
+]
 
 var state: State = State.PLAYING
 var world: Node2D
@@ -61,8 +71,8 @@ var _calm := false # dev: no Developer, infinite lives (for screenshots)
 var _autoplay_t := 0.0
 
 func _ready() -> void:
-	_autoplay = OS.get_cmdline_user_args().has("--autoplay")
-	_calm = OS.get_cmdline_user_args().has("--calm")
+	_autoplay = Game.dev_args().has("--autoplay")
+	_calm = Game.dev_args().has("--calm")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	randomize()
 	_build()
@@ -70,7 +80,7 @@ func _ready() -> void:
 		n.process_mode = Node.PROCESS_MODE_PAUSABLE
 	_connect()
 	# Dev tool: `-- --start-m=2500` begins the run further down the mountain.
-	for a in OS.get_cmdline_user_args():
+	for a in Game.dev_args():
 		if a.begins_with("--start-m="):
 			player.position.y = float(a.substr(10)) * PX_PER_M
 			dev_cooldown = 3.0
@@ -177,7 +187,13 @@ func _connect() -> void:
 	player.bailed_landing.connect(_on_bailed_landing)
 	player.trick_started.connect(func(_n): Sfx.play("flip" if _n == "BACKFLIP" else "trick", 0.05))
 	developer.caught_player.connect(_on_caught)
+	developer.capture_done.connect(func():
+		var msg: String = CHIP_MESSAGES[Game.acquired_count % CHIP_MESSAGES.size()]
+		Game.acquired_count += 1
+		_game_over("ACQUIRED!", msg))
 	developer.gave_up.connect(func():
+		if _autoplay:
+			print("CHIP_ESCAPED")
 		hud.warn("CHIP GOT BORED. YOU KEPT YOUR LAND.", 2.5)
 		score.add_style(400)
 		_popup("ESCAPED THE DEVELOPER +400", player.position + Vector2(0, -60), Color8(88, 200, 100))
@@ -265,6 +281,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		if state == State.PLAYING:
 			_set_paused(not get_tree().paused)
+		return
+	if state == State.CAPTURE:
+		var tap: bool = event is InputEventScreenTouch and event.pressed and not hud.is_point_on_ui(event.position)
+		if tap or event.is_action_pressed("jump") or event.is_action_pressed("ui_accept"):
+			developer.skip_capture()
 		return
 	if state == State.OVER:
 		if hud.is_entering_initials():
@@ -375,6 +396,13 @@ func _autoplay_input() -> void:
 				if v.y > 30.0 and v.y < 260.0 and v.length() < nearest:
 					nearest = v.length()
 					goal = clampf(atan2(v.x, v.y), -1.0, 1.0)
+	if developer.is_chasing() and Game.dev_args().has("--chip-bait"):
+		player.has_target = false
+		player.brake = true # dev: stand still and get acquired (capture screenshots)
+		return
+	if developer.is_chasing() and not danger:
+		goal = 0.0 # run straight from Chip...
+		player.tuck = true # ...in a tuck
 	player.has_target = true
 	player.target_heading = best * 1.0 if danger else goal
 	if player.is_airborne() and player.trick == "":
@@ -542,13 +570,17 @@ func _update_developer(delta: float) -> void:
 func _on_caught() -> void:
 	if state != State.PLAYING:
 		return
+	# Short, skippable capture: Chip skids alongside and makes his pitch,
+	# then the regular game-over screen.
+	state = State.CAPTURE
 	player.caught()
-	developer.stop()
-	developer.visible = true
-	Sfx.play("crash")
+	tracks.break_line()
+	score.bail()
+	Sfx.set_hiss(0.0)
 	Game.vibrate(120)
-	shake = 10.0
-	_game_over("ACQUIRED!", "Chip Lodgeworth III bought you, your skis, and the view.")
+	shake = 6.0
+	hud.clear_warning()
+	developer.capture(player)
 
 # ---------------------------------------------------------------- zones & events
 func _set_zone(i: int) -> void:
@@ -644,6 +676,7 @@ func _game_over(title: String, cause: String) -> void:
 	if state == State.OVER:
 		return
 	state = State.OVER
+	Sfx.set_engine(0.0)
 	score.bank()
 	Sfx.play("gameover")
 	Sfx.set_hiss(0.0)
@@ -667,6 +700,7 @@ func _set_paused(on: bool) -> void:
 	hud.set_paused(on)
 	if on:
 		Sfx.set_hiss(0.0)
+		Sfx.set_engine(0.0)
 	_touches.clear()
 
 func _restart() -> void:

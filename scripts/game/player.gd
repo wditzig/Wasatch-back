@@ -417,7 +417,7 @@ func _apply_pose() -> void:
 			else:
 				pose = "crash"
 		S.CAUGHT:
-			pose = "crash"
+			pose = "down" # stopped dead, staring at a sales pitch
 		_:
 			pass
 	if wobble_t > 0.0:

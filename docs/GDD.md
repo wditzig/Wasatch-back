@@ -95,7 +95,12 @@ Pole-push/skate at low speed, tuck pose, lean into turns, knee flex that quicken
 - **MONOPEAK Newswire:** ticker of fictional headlines, always ending "GONDOLUX™ OPENING SOON: EST. 2057" (matching the in-game sign). Delays change the excuse, never the date.
 
 ## 10. Characters & brands (all fictional)
-- **Chip Lodgeworth III** — Founder & Chief Exclusivity Officer, MONOPEAK HOLDINGS. Sunglasses, navy suit, red tie, clipboard, snowmobile. "LET'S TALK EQUITY!"
+- **Chip Lodgeworth III** — Founder & Chief Exclusivity Officer, MONOPEAK HOLDINGS, and Wasatch Back's answer to the 1990s yeti. White-and-gold luxury ski suit, fur collar, oversized mirrored gold goggles, smug grin, red-and-gold snowmobile. He isn't chasing you because you broke the rules — he's chasing you because he bought the rules.
+  - *Appears:* unchanged timing (first in Phase 1, then every ~16–30 s, more often later). Enters from behind with a snow-spray plume, exhaust and a subtle two-stroke engine loop that gets louder as he closes in.
+  - *AI:* plain arcade pursuit. Speed ramps 0.88× → 1.12× of your top speed over 12 s; turn rate is capped (4.2 rad/s) so a late, hard cut makes him overshoot. A straight tuck (1.22×) outruns him; airborne riders can't be grabbed. Gives up after 15 s ("UGH. ZONING MEETING.").
+  - *Catch box:* the snowmobile body (32×22 px) against the rider's feet. He bulldozes trees he drives through into stumps.
+  - *Capture (~1.9 s, tap to skip):* he skids up alongside — "YOU'RE ON PRIVATE PROPERTY!" … "BUT I'LL SELL YOU A HOUSE WITH SKI ACCESS!" — then the normal game-over screen: **ACQUIRED! / PUBLIC ACCESS REVOKED.** with a rotating Chip-only message (luxury homes from $8.2 million, HOA dues, gated runs, timeshare season passes…). Other hazards keep their own game-over copy.
+  - *Tuning check:* with a bot that tucks away from him, ~27% of chases end in a catch (was ~29% before the redesign).
 - **MONOPEAK HOLDINGS** — "Own the View."
 - **GONDOLUX™** — Opening Soon™.
 - **GRANITECORE DATA** — "Your snowpack is our coolant."

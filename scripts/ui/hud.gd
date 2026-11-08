@@ -256,6 +256,11 @@ func show_hint(text: String, dur := 4.0) -> void:
 	tw.tween_interval(dur)
 	tw.tween_property(hint_l, "modulate:a", 0.0, 0.8)
 
+func clear_warning() -> void:
+	_warn_t = 0.0
+	warn_l.text = ""
+	combo_l.text = ""
+
 func warn(text: String, dur := 2.5) -> void:
 	warn_l.text = text
 	_warn_t = dur
@@ -455,7 +460,9 @@ func _show_results(title: String, cause: String, score: int, meters: float, toke
 	var vb := _clear_over()
 	var col := UI.RED if title == "ACQUIRED!" else UI.ORANGE
 	vb.add_child(UI.pixel_text(title, 3.0 if title.length() <= 10 else 2.0, col))
-	vb.add_child(UI.label(OVER_LINES[(Game.runs - 1 + OVER_LINES.size()) % OVER_LINES.size()], 16, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER, 4))
+	# Chip catches always read PUBLIC ACCESS REVOKED.; other endings rotate.
+	var punch: String = "PUBLIC ACCESS REVOKED." if title == "ACQUIRED!" else OVER_LINES[(Game.runs - 1 + OVER_LINES.size()) % OVER_LINES.size()]
+	vb.add_child(UI.label(punch, 16, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER, 4))
 	vb.add_child(UI.label(cause, 13, UI.ICE))
 	var sep := HSeparator.new()
 	vb.add_child(sep)

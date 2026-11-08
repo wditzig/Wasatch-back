@@ -24,6 +24,7 @@ var total_tokens := 0
 var runs := 0
 var seen_tutorial := false
 var last_initials := "AAA"
+var acquired_count := 0
 
 var _shot_dir := ""
 var _shot_every := 2.0
@@ -37,13 +38,28 @@ func _ready() -> void:
 	_setup_input()
 	load_game()
 	# Dev tool: `-- --shots=<dir> [--shot-every=2]` saves periodic screenshots.
-	for a in OS.get_cmdline_user_args():
+	for a in dev_args():
 		if a.begins_with("--shots="):
 			_shot_dir = a.substr(8)
 		elif a.begins_with("--shot-every="):
 			_shot_every = float(a.substr(13))
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_process(_shot_dir != "")
+
+var _dev_args = null
+
+## Developer/testing flags: command-line user args (`-- --autoplay`), or on
+## the web the URL hash, e.g. index.html#--autoplay,--start-m=700
+func dev_args() -> PackedStringArray:
+	if _dev_args == null:
+		var args := OS.get_cmdline_user_args()
+		if OS.has_feature("web"):
+			var h = JavaScriptBridge.eval("decodeURIComponent(window.location.hash || '')", true)
+			if typeof(h) == TYPE_STRING and String(h).begins_with("#--"):
+				for part in String(h).substr(1).split(","):
+					args.append(part)
+		_dev_args = args
+	return _dev_args
 
 func _process(delta: float) -> void:
 	_shot_t += delta
@@ -86,6 +102,7 @@ func load_game() -> void:
 	runs = cf.get_value("profile", "runs", 0)
 	seen_tutorial = cf.get_value("profile", "seen_tutorial", false)
 	last_initials = cf.get_value("profile", "last_initials", "AAA")
+	acquired_count = cf.get_value("profile", "acquired_count", 0)
 	high_scores = cf.get_value("scores", "list", [])
 	var s: Dictionary = cf.get_value("settings", "values", {})
 	for k in s.keys():
@@ -105,6 +122,7 @@ func save_game() -> void:
 	cf.set_value("profile", "runs", runs)
 	cf.set_value("profile", "seen_tutorial", seen_tutorial)
 	cf.set_value("profile", "last_initials", last_initials)
+	cf.set_value("profile", "acquired_count", acquired_count)
 	cf.set_value("scores", "list", high_scores)
 	cf.set_value("settings", "values", settings)
 	cf.save(SAVE_PATH)
