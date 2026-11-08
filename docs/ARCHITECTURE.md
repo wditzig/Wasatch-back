@@ -30,6 +30,11 @@ Game (Node2D, PROCESS_MODE_ALWAYS — handles pause)
 ## Terrain generation
 The world is an infinite grid of 80 px cells. When a cell enters the generation rect (view + margins, extra lookahead below), it's seeded from `hash(run_seed, cx, cy)`, so it's deterministic and order-independent. The zone at the cell's depth picks an obstacle by weight. `density × (0.8 + 0.7×difficulty)` decides if the cell spawns anything. Clusters (`cluster`) and set pieces (`parts`, e.g. toll plazas and paywalls) expand into several obstacles. Obstacles far behind or far to the side are freed; old cell keys are pruned. Gondola towers spawn on a fixed cable x every 560 px from Phase 1.
 
+## Environment layer (decor.gd)
+Ground details use their own grid (120 px) and their own RNG stream (`hash(seed, cx, cy, SALT)`), so adding or changing decorations can never shift obstacle generation. Obstacle sprite **variants** are chosen from a hash of the obstacle's position, for the same reason. `tools/terrain_fingerprint.tscn` prints obstacle counts per phase and a hash of every placement; it must not change when only visuals change.
+
+Current fingerprint (seed 12345): `obstacles=3080 per_zone=[151, 465, 658, 889, 917] hash=0590e06dc560e424d32d32ee356984ab`
+
 ## Performance notes
 - Typical live obstacle count is 25–65; a collision check costs O(n) with an early y-reject.
 - All textures are tiny and cached; nearest filtering; no per-frame allocations in hot paths except popups.

@@ -7,6 +7,7 @@ const SpawnerScript = preload("res://scripts/game/spawner.gd")
 const DeveloperScript = preload("res://scripts/game/developer.gd")
 const TracksScript = preload("res://scripts/game/tracks.gd")
 const GondolaScript = preload("res://scripts/game/gondola_line.gd")
+const DecorScript = preload("res://scripts/game/decor.gd")
 const ScoreSystem = preload("res://scripts/game/score_system.gd")
 const EventDirector = preload("res://scripts/game/event_director.gd")
 const HudScript = preload("res://scripts/ui/hud.gd")
@@ -24,6 +25,9 @@ enum State { PLAYING, OVER }
 var state: State = State.PLAYING
 var world: Node2D
 var ground: Sprite2D
+var ground_detail: Sprite2D
+var decor: Node2D
+var tint: CanvasModulate
 var tracks: Node2D
 var player: Node2D
 var spawner: Node2D
@@ -53,14 +57,16 @@ var _touches := {}
 var _steer_touch := -1
 var _clear_color := Color(0.95, 0.97, 1.0)
 var _autoplay := false
+var _calm := false # dev: no Developer, infinite lives (for screenshots)
 var _autoplay_t := 0.0
 
 func _ready() -> void:
 	_autoplay = OS.get_cmdline_user_args().has("--autoplay")
+	_calm = OS.get_cmdline_user_args().has("--calm")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	randomize()
 	_build()
-	for n in [ground, tracks, world, spawner, gondola, camera]:
+	for n in [ground, ground_detail, decor, tracks, world, spawner, gondola, camera]:
 		n.process_mode = Node.PROCESS_MODE_PAUSABLE
 	_connect()
 	# Dev tool: `-- --start-m=2500` begins the run further down the mountain.
@@ -87,6 +93,17 @@ func _build() -> void:
 	ground.centered = false
 	ground.z_index = -20
 	add_child(ground)
+	ground_detail = Sprite2D.new()
+	ground_detail.texture = Art.tex("ground_detail")
+	ground_detail.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	ground_detail.region_enabled = true
+	ground_detail.centered = false
+	ground_detail.z_index = -19
+	add_child(ground_detail)
+	tint = CanvasModulate.new()
+	add_child(tint)
+	decor = DecorScript.new()
+	add_child(decor)
 	tracks = TracksScript.new()
 	add_child(tracks)
 	world = Node2D.new()
@@ -104,6 +121,7 @@ func _build() -> void:
 	add_child(gondola)
 	var seed := randi()
 	spawner.setup(world, seed)
+	decor.setup(seed)
 	gondola.cable_x = spawner.cable_x
 	gondola.start_y = float(Zones.ZONES[1]["start_m"]) * PX_PER_M
 	camera = Camera2D.new()
@@ -193,7 +211,7 @@ func _process(delta: float) -> void:
 		_read_input(screen)
 		player.max_speed = (250.0 + 210.0 * difficulty) * float(player.rider["speed_mult"])
 		player.update(delta)
-		tracks.add_point(player.position, not player.is_airborne() and not player.is_down())
+		tracks.add_point(player.position, not player.is_airborne() and not player.is_down(), player.powder_t > 0.0)
 		distance_m = maxf(distance_m, (player.position.y - start_y) / PX_PER_M)
 		score.add_distance(maxf(0.0, player.velocity().y * delta / PX_PER_M) * 0.5)
 		difficulty = clampf(distance_m / DIFFICULTY_FULL_M, 0.0, 1.0)
@@ -222,9 +240,12 @@ func _process(delta: float) -> void:
 	var view := Rect2(camera.position - vs * 0.5, vs)
 	spawner.update_view(view, difficulty)
 	gondola.update(delta, view)
+	decor.update(delta, view, maxi(zone_index, 0), gondola.closed)
 	tracks.prune(view.position.y - 40.0)
 	ground.position = Vector2(floorf(view.position.x / 64.0) * 64.0 - 64.0, floorf(view.position.y / 64.0) * 64.0 - 64.0)
 	ground.region_rect = Rect2(0, 0, vs.x + 192.0, vs.y + 192.0)
+	ground_detail.position = Vector2(floorf(view.position.x / 256.0) * 256.0 - 256.0, floorf(view.position.y / 256.0) * 256.0 - 256.0)
+	ground_detail.region_rect = Rect2(0, 0, vs.x + 768.0, vs.y + 768.0)
 	snow.position = Vector2(screen.x * 0.5, -10)
 	snow.emission_rect_extents = Vector2(screen.x * 0.7, 4)
 	# fog
@@ -450,12 +471,16 @@ func _contact(o) -> void:
 			o.wobble()
 			if o.id == "moose":
 				o.scare(player.position.x)
+			if o.tall and o.sprite:
+				# knock the snow off the branches
+				_burst(o.position + Vector2(0, -o.sprite.texture.get_height() * 1.4), 18)
 			_crash(String(o.def.get("msg", "Wipeout.")))
 
 func _crash(msg: String) -> void:
 	player.crash()
 	tracks.break_line()
-	lives -= 1
+	if not _calm:
+		lives -= 1
 	hud.set_lives(lives)
 	score.bail()
 	Sfx.play("crash", 0.05)
@@ -504,7 +529,7 @@ func _update_developer(delta: float) -> void:
 					if o.id == "moose":
 						o.scare(developer.position.x)
 		return
-	if zone_index < 1:
+	if zone_index < 1 or _calm:
 		return
 	dev_cooldown -= delta
 	if dev_cooldown <= 0.0 and not player.is_down():
@@ -533,7 +558,11 @@ func _set_zone(i: int) -> void:
 		_clear_color = c
 		RenderingServer.set_default_clear_color(c), _clear_color, z["snow"], 1.5 if not first else 0.01)
 	ground.modulate = Color(z["speckle"], 0.6)
+	ground_detail.modulate = Color(z["speckle"].lerp(Color.WHITE, 0.4), 1.0)
 	tracks.color = Color(z["speckle"], 0.55)
+	var t2 := create_tween().set_parallel(true)
+	t2.tween_property(tint, "color", z["tint"], 2.5 if not first else 0.01)
+	t2.tween_property(snow, "color", z["snowfall"], 2.5 if not first else 0.01)
 	gondola.running = i >= 2
 	hud.show_banner(z["name"], z["subtitle"])
 	if not first:
@@ -583,11 +612,11 @@ func _popup(text: String, pos: Vector2, color: Color, size := 1.0) -> void:
 	tw.tween_property(l, "modulate:a", 0.0, 1.0).set_delay(0.5)
 	tw.chain().tween_callback(l.queue_free)
 
-func _burst(pos: Vector2) -> void:
+func _burst(pos: Vector2, amount := 30) -> void:
 	var p := CPUParticles2D.new()
 	p.one_shot = true
 	p.explosiveness = 1.0
-	p.amount = 30
+	p.amount = amount
 	p.lifetime = 0.6
 	p.direction = Vector2(0, -1)
 	p.spread = 180
@@ -611,8 +640,11 @@ func _game_over(title: String, cause: String) -> void:
 	score.bank()
 	Sfx.play("gameover")
 	Sfx.set_hiss(0.0)
-	var rec: Dictionary = Game.record_run(score.score, distance_m, tokens, title)
-	hud.show_game_over(title, cause, score.score, distance_m, tokens, rec, Game.best_score)
+	var phase: String = Zones.ZONES[maxi(zone_index, 0)]["name"]
+	var rec: Dictionary = Game.record_run(score.score, distance_m, tokens, title, phase)
+	var share_data := {"score": score.score, "distance": int(distance_m), "rider": Game.rider,
+		"outfit": Game.current_outfit(), "cause": title, "phase": phase}
+	hud.show_game_over(title, cause, score.score, distance_m, tokens, rec, Game.best_score, share_data)
 	if _autoplay:
 		get_tree().create_timer(1.5).timeout.connect(_restart)
 	print("RUN_OVER score=%d distance=%d tokens=%d cause=%s" % [score.score, int(distance_m), tokens, title])

@@ -22,6 +22,7 @@ var best_distance := 0.0
 var best_score := 0
 var total_tokens := 0
 var runs := 0
+var seen_tutorial := false
 
 var _shot_dir := ""
 var _shot_every := 2.0
@@ -79,6 +80,7 @@ func load_game() -> void:
 	best_score = cf.get_value("profile", "best_score", 0)
 	total_tokens = cf.get_value("profile", "total_tokens", 0)
 	runs = cf.get_value("profile", "runs", 0)
+	seen_tutorial = cf.get_value("profile", "seen_tutorial", false)
 	high_scores = cf.get_value("scores", "list", [])
 	var s: Dictionary = cf.get_value("settings", "values", {})
 	for k in s.keys():
@@ -96,6 +98,7 @@ func save_game() -> void:
 	cf.set_value("profile", "best_score", best_score)
 	cf.set_value("profile", "total_tokens", total_tokens)
 	cf.set_value("profile", "runs", runs)
+	cf.set_value("profile", "seen_tutorial", seen_tutorial)
 	cf.set_value("scores", "list", high_scores)
 	cf.set_value("settings", "values", settings)
 	cf.save(SAVE_PATH)
@@ -130,7 +133,7 @@ func current_outfit() -> Dictionary:
 	return Riders.outfit(outfit)
 
 ## Records a finished run. Returns {rank (-1 if not top 10), new_best, unlocked: [names]}.
-func record_run(score: int, distance_m: float, tokens: int, cause: String) -> Dictionary:
+func record_run(score: int, distance_m: float, tokens: int, cause: String, phase := "") -> Dictionary:
 	var before := {}
 	for o in Riders.OUTFITS:
 		before[o["id"]] = is_unlocked(o["id"])
@@ -144,6 +147,7 @@ func record_run(score: int, distance_m: float, tokens: int, cause: String) -> Di
 		"distance": int(distance_m),
 		"rider": rider,
 		"cause": cause,
+		"phase": phase,
 		"date": Time.get_date_string_from_system(),
 	}
 	high_scores.append(entry)

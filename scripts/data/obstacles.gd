@@ -17,16 +17,18 @@ extends RefCounted
 ## cluster: {"count": [min, max], "step": [dx, dy], "jitter": px}
 ## parts:   compound set pieces: [[def_id, dx, dy], ...]
 ## flat:    drawn under everything (ground decals)
+## variants: alternative sprites, picked from the obstacle's position (not the
+##           spawn RNG) so terrain generation stays identical
 
 const DEFS := {
 	# --- Nature --------------------------------------------------------
-	"pine_big": {"sprite": "pine_big", "kind": "solid", "tall": true, "hit": [14, 10], "raze": "stump",
+	"pine_big": {"sprite": "pine_big", "variants": ["pine_big", "pine_big", "pine_laden", "spruce_tall"], "kind": "solid", "tall": true, "hit": [14, 10], "raze": "stump",
 		"weights": [10, 5, 3, 1.5, 1], "msg": "Tree. It was here first."},
-	"pine_small": {"sprite": "pine_small", "kind": "solid", "tall": true, "hit": [10, 8], "raze": "stump",
+	"pine_small": {"sprite": "pine_small", "variants": ["pine_small", "pine_small_b"], "kind": "solid", "tall": true, "hit": [10, 8], "raze": "stump",
 		"weights": [9, 4, 2, 1, 1], "msg": "Small tree. Big feelings."},
-	"snag": {"sprite": "snag", "kind": "solid", "tall": true, "hit": [6, 6], "raze": "stump",
+	"snag": {"sprite": "snag", "variants": ["snag", "snag_b"], "kind": "solid", "tall": true, "hit": [6, 6], "raze": "stump",
 		"weights": [3, 2, 1, 1, 0.5], "msg": "Bare aspen. Still winning."},
-	"rock": {"sprite": "rock", "kind": "solid", "hit": [24, 10],
+	"rock": {"sprite": "rock", "variants": ["rock", "rock_slab"], "kind": "solid", "hit": [24, 10],
 		"weights": [4, 3, 2, 2, 1.5], "msg": "Granite. Very old. Very hard. Very public."},
 	"rock_small": {"sprite": "rock_small", "kind": "solid", "hit": [12, 6],
 		"weights": [4, 2, 1, 1, 1], "msg": "Tiny rock. Core shot."},

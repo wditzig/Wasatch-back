@@ -13,6 +13,7 @@ var passed := false
 var consumed := false
 var hit_size := Vector2(16, 8)
 var sprite: Sprite2D
+var shadow: Sprite2D
 var _t := 0.0
 
 func setup(p_id: String, p_def: Dictionary, rng: RandomNumberGenerator) -> void:
@@ -22,13 +23,18 @@ func setup(p_id: String, p_def: Dictionary, rng: RandomNumberGenerator) -> void:
 	tall = def.get("tall", false)
 	var h: Array = def.get("hit", [16, 8])
 	hit_size = Vector2(h[0], h[1])
+	var flat: bool = def.get("flat", false)
+	if not flat and kind != "token":
+		shadow = Sprite2D.new()
+		shadow.texture = Art.tex("shadow_soft")
+		add_child(shadow)
 	if sprite == null:
 		sprite = Sprite2D.new()
 		sprite.centered = false
 		sprite.scale = Vector2(SCALE, SCALE)
 		add_child(sprite)
-	_set_texture(Art.tex(def["sprite"]))
-	if def.get("flat", false):
+	_set_texture(Art.tex(_pick_sprite()))
+	if flat:
 		z_index = -5
 	if def.has("speed"):
 		var sp: Array = def["speed"]
@@ -50,10 +56,24 @@ func setup(p_id: String, p_def: Dictionary, rng: RandomNumberGenerator) -> void:
 		add_child(l)
 	_t = rng.randf() * TAU
 
+## Visual variety without touching the spawn RNG: the variant is a pure
+## function of where the obstacle stands.
+func _pick_sprite() -> String:
+	if not def.has("variants"):
+		return def["sprite"]
+	var vs: Array = def["variants"]
+	var h := absi(hash(Vector2i(int(position.x), int(position.y))))
+	return vs[h % vs.size()]
+
 func _set_texture(t: Texture2D) -> void:
 	sprite.texture = t
 	var ts := t.get_size() * SCALE
 	sprite.position = Vector2(-ts.x * 0.5, -ts.y)
+	if shadow:
+		# Sun from the upper-left: shadow falls down-right of the base.
+		var w := maxf(ts.x * 0.95, hit_size.x + 6.0)
+		shadow.scale = Vector2(w / 32.0, clampf(ts.y / 40.0, 0.7, 1.6))
+		shadow.position = Vector2(ts.x * 0.12, -2.0)
 
 func get_hitbox() -> Rect2:
 	return Rect2(position.x - hit_size.x * 0.5, position.y - hit_size.y, hit_size.x, hit_size.y)

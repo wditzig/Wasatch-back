@@ -65,6 +65,24 @@ Style points go into a **combo pool**; each event adds +0.5× (cap 8×) and rese
 
 The Developer first appears in Phase 1 and returns every ~16–30 s (more often later). He bulldozes trees he drives through into stumps.
 
+### 8b. Environmental storytelling (visual only, never affects gameplay)
+Obstacle density is deliberately low at the start and rises each phase. Visual detail follows the same arc on a separate, non-colliding layer (`decor.gd`), so the start stays peaceful and the end feels chaotic:
+
+| Phase | Ground details (muted, flat) | Overhead | Light & snowfall |
+|---|---|---|---|
+| Pristine | wind drifts, sagebrush, rabbit & deer tracks, pine needles, twinkling sparkles | raven flocks | clean white |
+| Groundbreaking | snowcat treads, mud, orange survey X's, boot prints | ravens | slightly warm |
+| Luxury Living | groomed corduroy, steaming heated driveways, golf-cart tracks, valet stripes, litter | helicopter (heli-ski for members) | golden-hour glow, champagne-tinted flakes |
+| The Cloud | data cables, slush, ice cracks, steam vents | delivery-drone swarms | cold gray, gray flakes |
+| Privatized | QR codes and "$" stencils stamped in the snow, painted ads | "OWN THE VIEW" blimp | purple dusk |
+
+Each phase boundary is a painted property line on the snow ("SURVEY LINE - PUBLIC ACCESS ENDS", "PRIVATE PROPERTY - LOFTSIDE ESTATES", ...). Detail density runs 0.10 → 0.48 per 120 px cell. Everything is drawn under the obstacles at low contrast so hazards stay readable.
+
+Also: tree/rock variants (snow-laden pines, tall spruce, granite slabs), soft contact shadows (sun from upper-left), wind-ripple snow texture, deep powder trenches and plumes, snow shaken off trees on impact.
+
+### 8c. Rider animation
+Pole-push/skate at low speed, tuck pose, lean into turns, knee flex that quickens with speed, take-off stretch, landing squash + snow puff, arm wobble in the air, crash tumble, then a get-up pose.
+
 ## 9. Events
 - **Whiteout:** vignette fog; gondola "CLOSED DUE TO {WIND|LITIGATION|VIBES…}", ETA slips.
 - **Powder Day:** heavy snowfall, ×2 points.

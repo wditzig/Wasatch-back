@@ -9,7 +9,7 @@ const SpriteData = preload("res://scripts/data/sprites.gd")
 const PALETTE := {
 	"K": Color8(26, 28, 44), "X": Color8(13, 13, 18),
 	"W": Color8(255, 255, 255), "w": Color8(214, 226, 245), "v": Color8(168, 188, 224),
-	"G": Color8(29, 74, 46), "g": Color8(47, 122, 63), "l": Color8(88, 168, 74),
+	"G": Color8(29, 74, 46), "g": Color8(47, 122, 63), "l": Color8(88, 168, 74), "q": Color8(18, 50, 34),
 	"T": Color8(90, 52, 32), "t": Color8(138, 84, 48),
 	"R": Color8(216, 54, 60), "r": Color8(140, 29, 44),
 	"O": Color8(240, 138, 36), "o": Color8(184, 90, 20),
@@ -156,6 +156,17 @@ func _procedural(id: String) -> Image:
 		"shadow": return _shadow()
 		"speckle": return _speckle()
 		"pixel": return _pixel()
+		"shadow_soft": return _shadow_soft()
+		"ground_detail": return _ground_detail()
+		"d_treads": return _treads()
+		"d_corduroy": return _corduroy()
+		"d_heated": return _heated()
+		"d_cart": return _cart_tracks()
+		"d_valet": return _valet()
+		"d_cable": return _cable()
+		"d_qr": return _qr()
+		"heli": return _heli()
+		"blimp": return _blimp()
 	push_warning("Art: unknown sprite '%s'" % id)
 	var img := _img(8, 8)
 	img.fill(Color.MAGENTA)
@@ -382,6 +393,128 @@ func _speckle() -> Image:
 		img.set_pixel(x, y, Color(1, 1, 1, 0.55))
 		if rng.randf() < 0.4:
 			img.set_pixel(x + 1, y, Color(1, 1, 1, 0.35))
+	return img
+
+# ---------------------------------------------------------------- environment
+func _shadow_soft() -> Image:
+	# Soft elliptical contact shadow; sun from the upper-left.
+	var img := _img(32, 8)
+	for y in 8:
+		for x in 32:
+			var dx := (x - 15.5) / 16.0
+			var dy := (y - 3.5) / 4.0
+			var d := dx * dx + dy * dy
+			if d <= 1.0:
+				img.set_pixel(x, y, Color(0.16, 0.2, 0.42, 0.22 * (1.0 - d * 0.7)))
+	return img
+
+func _ground_detail() -> Image:
+	# Large tile of faint wind ripples (sastrugi) layered over the base snow.
+	var img := _img(256, 256)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	for i in 34:
+		var x0 := rng.randi_range(0, 255)
+		var y0 := rng.randi_range(0, 255)
+		var length := rng.randi_range(14, 40)
+		var amp := rng.randf_range(1.0, 3.0)
+		var ph := rng.randf() * TAU
+		for t in length:
+			var x := (x0 + t) % 256
+			var y := (y0 + int(sin(t * 0.25 + ph) * amp) + 256) % 256
+			img.set_pixel(x, y, Color(0.55, 0.65, 0.88, 0.16))
+			img.set_pixel(x, (y + 1) % 256, Color(1, 1, 1, 0.25))
+	return img
+
+func _treads() -> Image:
+	var img := _img(22, 64)
+	for y in range(0, 64, 3):
+		for x in [0, 2, 4, 6, 15, 17, 19, 21]:
+			_px(img, x, y + (x / 2) % 2, "v")
+	return img
+
+func _corduroy() -> Image:
+	var img := _img(48, 56)
+	for x in range(0, 48, 3):
+		for y in 56:
+			if (y + x) % 7 != 0:
+				img.set_pixel(x, y, Color(0.66, 0.74, 0.9, 0.55))
+	return img
+
+func _heated() -> Image:
+	# A heated driveway in the backcountry: wet, bare and steaming.
+	var img := _img(40, 26)
+	img.fill_rect(Rect2i(1, 1, 38, 24), Color(0.62, 0.66, 0.74, 1.0))
+	for i in 6:
+		_r(img, 3 + i * 6, 4, 3, 1, "w")
+	# melted, irregular snow edge
+	for x in 40:
+		if x % 3 != 0:
+			_px(img, x, 0, "v")
+			_px(img, x, 25, "v")
+	return img
+
+func _cart_tracks() -> Image:
+	var img := _img(14, 70)
+	for y in 70:
+		var o := int(sin(y * 0.08) * 2.0)
+		_px(img, 2 + o, y, "v")
+		_px(img, 11 + o, y, "v")
+	return img
+
+func _valet() -> Image:
+	var img := _img(46, 20)
+	for i in 4:
+		_r(img, 2 + i * 13, 0, 2, 18, "Y")
+	_r(img, 0, 18, 46, 2, "Y")
+	return img
+
+func _cable() -> Image:
+	var img := _img(90, 8)
+	for x in 90:
+		var y := 3 + int(sin(x * 0.09) * 2.0)
+		_px(img, x, y, "K")
+		_px(img, x, y + 1, "D")
+	for x in range(10, 90, 30):
+		_r(img, x, 0, 2, 8, "O")
+	return img
+
+func _qr() -> Image:
+	var img := _img(21, 21)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 99
+	for y in 21:
+		for x in 21:
+			if rng.randf() < 0.5:
+				_px(img, x, y, "K")
+	for c in [Vector2i(0, 0), Vector2i(14, 0), Vector2i(0, 14)]:
+		_r(img, c.x, c.y, 7, 7, "K")
+		img.fill_rect(Rect2i(c.x + 1, c.y + 1, 5, 5), Color(0, 0, 0, 0))
+		_r(img, c.x + 2, c.y + 2, 3, 3, "K")
+	return img
+
+func _heli() -> Image:
+	var img := _img(40, 40)
+	_r(img, 15, 10, 10, 16, "K")
+	_r(img, 16, 11, 8, 14, "E")
+	_r(img, 17, 12, 6, 4, "C")
+	_r(img, 19, 26, 2, 12, "K")
+	_r(img, 15, 36, 10, 2, "K")
+	_r(img, 0, 17, 40, 2, "D")
+	_r(img, 19, 0, 2, 36, "D")
+	return img
+
+func _blimp() -> Image:
+	var img := _img(72, 24)
+	for y in 24:
+		for x in 72:
+			var dx := (x - 35.5) / 36.0
+			var dy := (y - 10.5) / 10.5
+			if dx * dx + dy * dy <= 1.0:
+				img.set_pixel(x, y, PALETTE["P"] if y < 16 else PALETTE["N"])
+	_r(img, 64, 2, 6, 6, "P"); _r(img, 64, 15, 6, 6, "P")
+	_r(img, 30, 21, 12, 3, "D")
+	_r(img, 8, 9, 56, 5, "E")
 	return img
 
 # ---------------------------------------------------------------- pixel font

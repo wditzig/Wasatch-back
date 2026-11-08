@@ -84,15 +84,23 @@ scripts/
     developer.gd          The enemy: chases, bulldozes trees into stumps, gives up
     score_system.gd       Distance points + combo pool/multiplier/banking
     event_director.gd     Whiteout / Powder Day events, gondola delays, headlines
-    tracks.gd             Ski/board tracks
+    tracks.gd             Ski/board tracks (deep trench in powder)
+    decor.gd              Non-colliding environment: ground details, property lines, flyovers
     gondola_line.gd       Overhead gondola cable + cabins
   ui/
     ui_kit.gd             Theme + widget factories
     hud.gd                HUD, pause, game over
+    how_to_play.gd        Illustrated, paged guide
+    share.gd              Score card image + Web Share / clipboard fallback
     main_menu.gd, menu_background.gd
 docs/                     Game design doc, architecture, satire/fact policy
 tools/smoke_test.sh       Headless autoplay test
 ```
+
+## How to Play & sharing
+
+- **How to Play**: a 4-page illustrated guide (steer, jumps & tricks, the mountain, combos & Chip). It opens automatically before your very first run, and is always available from the title screen and the pause menu.
+- **Share**: the game-over screen and the High Scores page have a SHARE button. It builds a pixel-art score card (your rider, score, distance, phase reached, how it ended). On phones in the browser, this opens the native share sheet with the card attached. Elsewhere it copies a brag line with the game link and downloads/saves the card. Native iOS/Android share sheets need a share plugin (milestone M5).
 
 ## Testing
 
@@ -101,6 +109,9 @@ GODOT=/path/to/godot tools/smoke_test.sh      # headless: plays runs with a bot,
 godot --path . res://scenes/game.tscn -- --autoplay              # watch the bot play
 godot --path . res://scenes/game.tscn -- --start-m=2500          # jump straight to a later phase
 godot --path . -- --shots=/tmp/shots --shot-every=2              # periodic screenshots
+godot --path . res://scenes/game.tscn -- --autoplay --calm        # bot with no Developer & infinite lives (visual review)
+godot --headless res://tools/terrain_fingerprint.tscn             # obstacle count per phase + placement hash
+godot --headless res://tools/card_preview.tscn -- --out=/tmp      # render sample share cards
 ```
 
 ## Exporting to phones

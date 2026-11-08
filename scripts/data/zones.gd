@@ -1,5 +1,8 @@
 extends RefCounted
-## Development stages of the mountain. The run advances through these by
+## Development stages of the mountain. `density` drives obstacle spawning and
+## is intentionally low at first (a calm, open start) and rises each phase.
+## `tint` and `snowfall` are purely visual atmosphere.
+## The run advances through these by
 ## distance travelled. All companies and quotes are fictional satire.
 
 const ZONES := [
@@ -12,6 +15,8 @@ const ZONES := [
 		"speckle": Color(0.62, 0.72, 0.9),
 		"density": 0.13,
 		"dev_chance": 0.0,
+		"tint": Color(1.0, 1.0, 1.0),
+		"snowfall": Color(1, 1, 1, 0.9),
 	},
 	{
 		"id": "construction",
@@ -22,6 +27,8 @@ const ZONES := [
 		"speckle": Color(0.6, 0.55, 0.5),
 		"density": 0.16,
 		"dev_chance": 1.0,
+		"tint": Color(1.0, 0.98, 0.95),
+		"snowfall": Color(1, 1, 1, 0.85),
 	},
 	{
 		"id": "luxury",
@@ -32,6 +39,8 @@ const ZONES := [
 		"speckle": Color(0.7, 0.6, 0.45),
 		"density": 0.18,
 		"dev_chance": 1.0,
+		"tint": Color(1.0, 0.96, 0.9),
+		"snowfall": Color(1, 0.96, 0.85, 0.85),
 	},
 	{
 		"id": "datacenter",
@@ -42,6 +51,8 @@ const ZONES := [
 		"speckle": Color(0.45, 0.5, 0.58),
 		"density": 0.2,
 		"dev_chance": 1.0,
+		"tint": Color(0.9, 0.93, 0.97),
+		"snowfall": Color(0.75, 0.77, 0.8, 0.8),
 	},
 	{
 		"id": "privatized",
@@ -52,6 +63,8 @@ const ZONES := [
 		"speckle": Color(0.5, 0.4, 0.55),
 		"density": 0.22,
 		"dev_chance": 1.0,
+		"tint": Color(0.95, 0.9, 0.97),
+		"snowfall": Color(0.85, 0.78, 0.9, 0.8),
 	},
 ]
 

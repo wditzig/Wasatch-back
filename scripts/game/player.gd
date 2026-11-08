@@ -57,14 +57,23 @@ var wobble_t := 0.0
 var body: Sprite2D
 var shadow: Sprite2D
 var spray: CPUParticles2D
+var plume: CPUParticles2D
+var puff: CPUParticles2D
 var _tex := {}
+
+# animation state (visual only)
+var anim_t := 0.0
+var lean := 0.0
+var _prev_heading := 0.0
+var squash_t := 0.0
+var squash_amt := Vector2.ONE
 
 func setup(p_rider: String, p_outfit: Dictionary) -> void:
 	rider_id = p_rider
 	rider = Riders.RIDERS[p_rider]
 	outfit = p_outfit
 	var prefix: String = rider["sprite"]
-	for pose in ["down", "diag", "side", "air", "grab", "crash"]:
+	for pose in ["down", "diag", "side", "air", "grab", "crash", "tuck", "push", "getup"]:
 		_tex[pose] = Art.tex(prefix + "_" + pose, outfit)
 	shadow = Sprite2D.new()
 	shadow.texture = Art.tex("shadow")
@@ -84,6 +93,42 @@ func setup(p_rider: String, p_outfit: Dictionary) -> void:
 	spray.scale_amount_max = 3.0
 	spray.color = Color(0.85, 0.92, 1.0, 0.9)
 	add_child(spray)
+	# Powder plume: big, slow, billowing spray when riding deep snow.
+	plume = CPUParticles2D.new()
+	plume.emitting = false
+	plume.amount = 36
+	plume.lifetime = 0.9
+	plume.local_coords = false
+	plume.direction = Vector2(0, -1)
+	plume.spread = 60.0
+	plume.gravity = Vector2(0, 40)
+	plume.initial_velocity_min = 20.0
+	plume.initial_velocity_max = 70.0
+	plume.scale_amount_min = 2.5
+	plume.scale_amount_max = 5.0
+	plume.color = Color(1, 1, 1, 0.85)
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1, 1, 1, 0.9))
+	ramp.set_color(1, Color(1, 1, 1, 0.0))
+	plume.color_ramp = ramp
+	add_child(plume)
+	# Landing / take-off puff.
+	puff = CPUParticles2D.new()
+	puff.emitting = false
+	puff.one_shot = true
+	puff.explosiveness = 0.9
+	puff.amount = 16
+	puff.lifetime = 0.45
+	puff.local_coords = false
+	puff.direction = Vector2(0, -1)
+	puff.spread = 90.0
+	puff.gravity = Vector2(0, 160)
+	puff.initial_velocity_min = 30.0
+	puff.initial_velocity_max = 80.0
+	puff.scale_amount_min = 2.0
+	puff.scale_amount_max = 3.5
+	puff.color = Color(0.92, 0.96, 1.0, 0.9)
+	add_child(puff)
 	body = Sprite2D.new()
 	body.scale = Vector2(SCALE, SCALE)
 	add_child(body)
@@ -138,6 +183,17 @@ func launch(duration: float, peak: float) -> void:
 	queued = ""
 	tricks_done = []
 	spray.emitting = false
+	plume.emitting = false
+	_squash(Vector2(0.85, 1.2))
+	_puff()
+
+func _squash(amt: Vector2) -> void:
+	squash_amt = amt
+	squash_t = 0.16
+
+func _puff() -> void:
+	puff.restart()
+	puff.emitting = true
 
 func launch_from_ramp(ramp_air: float) -> void:
 	var dur := (0.55 + speed / 380.0) * ramp_air
@@ -167,6 +223,7 @@ func crash() -> void:
 	trick = ""
 	queued = ""
 	spray.emitting = false
+	plume.emitting = false
 	_apply_pose()
 
 func caught() -> void:
@@ -181,6 +238,12 @@ func stumble() -> void:
 	wobble_t = 0.4
 
 func update(delta: float) -> void:
+	anim_t += delta
+	squash_t = maxf(0.0, squash_t - delta)
+	# lean into the turn, from how fast the heading is changing
+	var turn_vel := (heading - _prev_heading) / maxf(delta, 0.001)
+	_prev_heading = heading
+	lean = lerpf(lean, clampf(-turn_vel * 0.07, -0.3, 0.3), clampf(12.0 * delta, 0, 1))
 	hop_cd = maxf(0.0, hop_cd - delta)
 	invuln = maxf(0.0, invuln - delta)
 	powder_t = maxf(0.0, powder_t - delta)
@@ -237,9 +300,12 @@ func _update_ski(delta: float) -> void:
 
 	# carve spray when turning hard at speed
 	var carving: bool = speed > 140.0 and (absf(heading) > 0.9 or brake or absf(steer) > 0.5)
-	spray.emitting = carving
+	spray.emitting = carving or speed > 330.0
 	if carving:
 		spray.direction = Vector2(-signf(heading) if heading != 0.0 else 1.0, -1.2).normalized()
+	else:
+		spray.direction = Vector2(0, -1)
+	plume.emitting = powder_t > 0.0 and speed > 60.0
 
 func _update_air(delta: float) -> void:
 	air_t += delta
@@ -280,6 +346,8 @@ func _land() -> void:
 	trick = ""
 	queued = ""
 	state = S.SKI
+	_squash(Vector2(1.3, 0.75))
+	_puff()
 	landed.emit(air_dur, tricks_done.duplicate())
 
 ## Combines a list of completed tricks into a display name: "720", "DOUBLE BACKFLIP"...
@@ -313,7 +381,19 @@ func _apply_pose() -> void:
 	body.flip_h = heading < 0.0
 	body.rotation = 0.0
 	body.scale = Vector2(SCALE, SCALE)
+	var bob := 0.0
+	var lift := height
 	match state:
+		S.SKI:
+			if tuck and a < 0.6:
+				pose = "tuck"
+			elif speed < 90.0 and a < 0.4 and not brake:
+				# skating / pole-pushing to get going
+				pose = "push" if int(anim_t * 4.0) % 2 == 0 else "down"
+			if pose == "down" or pose == "diag" or pose == "tuck":
+				body.rotation = lean
+			# subtle knee flex that quickens with speed
+			bob = sin(anim_t * (6.0 + speed * 0.03)) * clampf(speed / 300.0, 0.0, 1.0) * 0.8
 		S.AIR:
 			pose = "grab" if trick == "grab" else "air"
 			if trick == "spin":
@@ -322,20 +402,38 @@ func _apply_pose() -> void:
 				var p := clampf(trick_t / trick_len, 0, 1)
 				body.scale.y = SCALE * cos(p * TAU)
 				body.scale.x = SCALE * (1.0 + 0.15 * sin(p * PI))
-		S.CRASH, S.CAUGHT:
+				lift += 8.0 * sin(p * PI)
+			else:
+				body.rotation = sin(anim_t * 9.0) * 0.06 # arms windmilling a little
+		S.CRASH:
+			# tumble, settle, then get back up
+			var el := 1.1 - crash_t
+			if el < 0.35:
+				pose = "crash"
+				body.rotation = sin(el * 30.0) * 0.4 * (1.0 - el / 0.35)
+				lift = absf(sin(el / 0.35 * PI)) * 10.0
+			elif crash_t < 0.35:
+				pose = "getup"
+			else:
+				pose = "crash"
+		S.CAUGHT:
 			pose = "crash"
 		_:
 			pass
 	if wobble_t > 0.0:
 		body.rotation = sin(wobble_t * 40.0) * 0.25
+	if squash_t > 0.0:
+		var k := squash_t / 0.16
+		body.scale.x *= lerpf(1.0, squash_amt.x, k)
+		body.scale.y *= lerpf(1.0, squash_amt.y, k)
 	var t: Texture2D = _tex[pose]
 	body.texture = t
-	var lift := height + (8.0 if state == S.AIR and trick == "flip" else 0.0) * sin(clampf(trick_t / maxf(trick_len, 0.01), 0, 1) * PI)
-	body.position = Vector2(0, -t.get_height() * SCALE * 0.5 - lift)
+	var h := t.get_height() * absf(body.scale.y)
+	body.position = Vector2(0, -h * 0.5 - lift - bob)
 	var sh := clampf(1.0 - height / 90.0, 0.4, 1.0)
 	shadow.scale = Vector2(SCALE * sh, SCALE * sh)
-	shadow.position = Vector2(0, -1)
-	if invuln > 0.0:
+	shadow.position = Vector2(2, -1)
+	if invuln > 0.0 and state != S.CRASH:
 		body.modulate.a = 0.35 if int(invuln * 12.0) % 2 == 0 else 1.0
 	else:
 		body.modulate.a = 1.0

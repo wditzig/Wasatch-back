@@ -5,6 +5,8 @@ extends Control
 const UI = preload("res://scripts/ui/ui_kit.gd")
 const Riders = preload("res://scripts/data/riders.gd")
 const BG = preload("res://scripts/ui/menu_background.gd")
+const HowToPlay = preload("res://scripts/ui/how_to_play.gd")
+const Share = preload("res://scripts/ui/share.gd")
 
 var main_box: VBoxContainer
 var panels := {}
@@ -31,7 +33,10 @@ func _ready() -> void:
 		if a.begins_with("--open="):
 			_open(a.substr(7))
 		elif a == "--autoplay":
+			Game.seen_tutorial = true
 			get_tree().create_timer(1.0).timeout.connect(_play)
+		elif a == "--howto":
+			_how_to_play(false)
 
 func _build_main() -> void:
 	var margin := MarginContainer.new()
@@ -57,7 +62,14 @@ func _build_main() -> void:
 	play.add_theme_font_size_override("font_size", 26)
 	main_box.add_child(play)
 	main_box.add_child(UI.button("RIDER & GEAR", func(): _open("rider")))
-	main_box.add_child(UI.button("HIGH SCORES", func(): _open("scores")))
+	var row0 := HBoxContainer.new()
+	row0.add_theme_constant_override("separation", 10)
+	var how := UI.button("HOW TO PLAY", func(): _how_to_play(false))
+	var hs := UI.button("SCORES", func(): _open("scores"))
+	for b in [how, hs]:
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row0.add_child(b)
+	main_box.add_child(row0)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	var s := UI.button("SETTINGS", func(): _open("settings"))
@@ -77,7 +89,24 @@ func _build_main() -> void:
 	play.call_deferred("grab_focus")
 
 func _play() -> void:
+	if not Game.seen_tutorial:
+		_how_to_play(true)
+		return
 	get_tree().change_scene_to_file("res://scenes/game.tscn")
+
+## First ride shows the guide, ending in "LET'S RIDE!".
+func _how_to_play(then_ride: bool) -> void:
+	main_box.visible = false
+	for p in panels.values():
+		p["root"].visible = false
+	var done := func():
+		Game.seen_tutorial = true
+		Game.save_game()
+		if then_ride:
+			get_tree().change_scene_to_file("res://scenes/game.tscn")
+		else:
+			main_box.visible = true
+	HowToPlay.open(self, done, "LET'S RIDE!" if then_ride else "DONE")
 
 func _open(id: String) -> void:
 	for k in panels.keys():
@@ -226,6 +255,14 @@ func _build_scores() -> Dictionary:
 		vb.add_child(UI.label("%2d. %8d  %5dm  %s" % [i + 1, int(e["score"]), int(e["distance"]), rider_tag], 14, col, HORIZONTAL_ALIGNMENT_LEFT))
 	vb.add_child(HSeparator.new())
 	vb.add_child(UI.label("Runs: %d   Passes collected: %d\nBest distance: %d m" % [Game.runs, Game.total_tokens, int(Game.best_distance)], 12, UI.ICE))
+	if not Game.high_scores.is_empty():
+		var status := UI.label("", 12, UI.GREEN)
+		var best: Dictionary = Game.high_scores[0]
+		var share_best := func():
+			status.text = Share.share({"score": best["score"], "distance": best["distance"], "rider": best.get("rider", "skier"),
+				"outfit": Game.current_outfit(), "cause": best.get("cause", ""), "phase": best.get("phase", "")})
+		vb.add_child(UI.button("SHARE MY BEST", share_best, 46))
+		vb.add_child(status)
 	vb.add_child(UI.button("BACK", _close, 44))
 	return ov
 

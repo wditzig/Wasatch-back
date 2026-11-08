@@ -8,6 +8,8 @@ signal restart_requested
 signal menu_requested
 
 const UI = preload("res://scripts/ui/ui_kit.gd")
+const HowToPlay = preload("res://scripts/ui/how_to_play.gd")
+const Share = preload("res://scripts/ui/share.gd")
 
 var root: Control
 var score_l: Label
@@ -273,6 +275,7 @@ func _build_pause() -> void:
 	vb.add_child(UI.pixel_text("PAUSED", 3.0))
 	vb.add_child(UI.button("RESUME", func(): resume_requested.emit()))
 	vb.add_child(UI.button("RESTART", func(): restart_requested.emit()))
+	vb.add_child(UI.button("HOW TO PLAY", func(): HowToPlay.open(root)))
 	vb.add_child(UI.settings_box())
 	vb.add_child(UI.button("QUIT TO MENU", func(): menu_requested.emit()))
 	pause_ov["root"].visible = false
@@ -285,7 +288,7 @@ func _build_over() -> void:
 	over_ov = UI.overlay(root, 320)
 	over_ov["root"].visible = false
 
-func show_game_over(title: String, cause: String, score: int, meters: float, tokens: int, rec: Dictionary, best: int) -> void:
+func show_game_over(title: String, cause: String, score: int, meters: float, tokens: int, rec: Dictionary, best: int, share_data: Dictionary = {}) -> void:
 	var vb: VBoxContainer = over_ov["box"]
 	for c in vb.get_children():
 		c.queue_free()
@@ -311,8 +314,16 @@ func show_game_over(title: String, cause: String, score: int, meters: float, tok
 	var again := UI.button("RIDE AGAIN", func(): restart_requested.emit(), 58)
 	again.add_theme_font_size_override("font_size", 22)
 	vb.add_child(again)
-	vb.add_child(UI.button("MENU", func(): menu_requested.emit(), 44))
-	vb.add_child(UI.label("Tap RIDE AGAIN or press R", 11, UI.ICE))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var status := UI.label("", 11, UI.GREEN)
+	var share_b := UI.button("SHARE", func(): status.text = Share.share(share_data), 46)
+	var menu_b := UI.button("MENU", func(): menu_requested.emit(), 46)
+	for b in [share_b, menu_b]:
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(b)
+	vb.add_child(row)
+	vb.add_child(status)
 	over_ov["root"].visible = true
 	over_ov["panel"].scale = Vector2(0.8, 0.8)
 	over_ov["panel"].pivot_offset = Vector2(160, 200)
