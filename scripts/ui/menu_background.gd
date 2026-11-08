@@ -45,13 +45,15 @@ func _ridge(base: float, amp: float, seed: float, step: float, c: Color, snowcap
 	pts.append(Vector2(0, size.y))
 	var x := 0.0
 	var prev_h := base
-	while x <= size.x + step:
+	while x <= size.x:
 		var h := base - amp * (0.5 + 0.5 * sin(x * 0.021 + seed)) * (0.6 + 0.4 * sin(x * 0.057 + seed * 2.0)) - amp * 0.35 * absf(sin(x * 0.011 + seed * 0.5))
 		h = floorf(h / 4.0) * 4.0
-		pts.append(Vector2(x, prev_h))
+		if x > 0.0:
+			pts.append(Vector2(x, prev_h))
 		pts.append(Vector2(x, h))
 		prev_h = h
 		x += step
+	pts.append(Vector2(size.x, prev_h))
 	pts.append(Vector2(size.x, size.y))
 	draw_colored_polygon(pts, c)
 	if snowcap.a > 0.0:
@@ -64,6 +66,8 @@ func _ridge(base: float, amp: float, seed: float, step: float, c: Color, snowcap
 			x += step
 
 func _draw() -> void:
+	if size.x < 4.0 or size.y < 4.0:
+		return # not laid out yet
 	var h := size.y
 	# alpenglow sky
 	_band(0, h * 0.12, Color8(36, 34, 88))

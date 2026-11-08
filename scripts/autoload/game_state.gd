@@ -158,6 +158,8 @@ func current_outfit() -> Dictionary:
 
 ## Records a finished run. Returns {rank (-1 if not top 10), new_best, unlocked: [names]}.
 func record_run(score: int, distance_m: float, tokens: int, cause: String, phase := "") -> Dictionary:
+	if dev_args().has("--no-save"):
+		return {"rank": -1, "new_best": false, "unlocked": [], "entry": {}} # dev: recording / tests
 	var before := {}
 	for o in Riders.OUTFITS:
 		before[o["id"]] = is_unlocked(o["id"])

@@ -24,6 +24,7 @@ const CAPTURE_TIME := 1.9
 ## screen, visible and still talking, while the real gap (and therefore the
 ## difficulty) is exactly what it would have been.
 const LEASH := 118.0
+var leash := LEASH # dev: --leash=<px> (trailer framing)
 const LINE_TIME := 2.8
 const LINES := ["LET'S TALK EQUITY!", "SIGN HERE!", "I'LL MAKE YOU AN OFFER!", "YOU'RE ON MY LAND!",
 	"THINK OF THE SHAREHOLDERS!", "PUBLIC? NOT FOR LONG!", "I LOVE NATURE! I OWN SOME!", "DON'T MAKE ME REZONE YOU!",
@@ -177,7 +178,7 @@ func update(delta: float, player: Node2D, player_max: float) -> void:
 			vel = cur * speed
 			_vpos += vel * delta
 			var back: Vector2 = _vpos - player.position
-			position = player.position + back.normalized() * LEASH if back.y < 0.0 and back.length() > LEASH else _vpos
+			position = player.position + back.normalized() * leash if back.y < 0.0 and back.length() > leash else _vpos
 			body.flip_h = vel.x < -10.0
 			body.position.y = -body.texture.get_height() * SCALE + (1.0 if int(t * 30.0) % 2 == 0 else 0.0) # engine rattle
 			if grab_rect().intersects(player.feet_rect()) and not player.is_airborne() and player.state != player.S.CAUGHT:

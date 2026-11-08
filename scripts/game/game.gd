@@ -65,7 +65,9 @@ var fog_strength := 0.0
 var fog_target := 0.0
 var hitstop := 0.0
 var _cam_x := 0.0
+var _zoom := ZOOM
 var _cam_frac := PLAYER_SCREEN_Y
+var _chase_frac := PLAYER_SCREEN_Y_CHASE
 var _touches := {}
 var _steer_touch := -1
 var _clear_color := Color(0.95, 0.97, 1.0)
@@ -87,6 +89,10 @@ func _ready() -> void:
 		if a.begins_with("--start-m="):
 			player.position.y = float(a.substr(10)) * PX_PER_M
 			dev_cooldown = 3.0
+		elif a.begins_with("--start-speed="):
+			player.speed = float(a.substr(14))
+		elif a == "--chip-now":
+			dev_cooldown = 0.05
 	if Game.dev_args().has("--jump-test"):
 		# Dev: obstacles right past the start kicker (which sits at y=330)
 		var specs := [["pine_big", 362.0], ["rock", 400.0], ["pine_small", 440.0]]
@@ -95,6 +101,9 @@ func _ready() -> void:
 		for spec in specs:
 			spawner._spawn(spec[0], Vector2(0, spec[1]), RandomNumberGenerator.new())
 	_set_zone(0)
+	for a in Game.dev_args():
+		if a.begins_with("--event="):
+			events._start(a.substr(8))
 	hud.set_lives(lives)
 	hud.set_headline("Welcome to the Wasatch. It's public land - enjoy it while it lasts.", events.gondola_eta())
 	if Game.settings.get("controls", "drag") == "drag":
@@ -145,7 +154,14 @@ func _build() -> void:
 	gondola.cable_x = spawner.cable_x
 	gondola.start_y = float(Zones.ZONES[1]["start_m"]) * PX_PER_M
 	camera = Camera2D.new()
-	camera.zoom = Vector2(ZOOM, ZOOM)
+	for a in Game.dev_args():
+		if a.begins_with("--zoom="):
+			_zoom = float(a.substr(7)) # dev: closer camera (trailer)
+		elif a.begins_with("--chase-frame="):
+			_chase_frac = float(a.substr(14))
+		elif a.begins_with("--leash="):
+			developer.leash = float(a.substr(8))
+	camera.zoom = Vector2(_zoom, _zoom)
 	add_child(camera)
 	camera.make_current()
 	# screen-space snowfall + whiteout fog
@@ -229,7 +245,7 @@ func _process(delta: float) -> void:
 		return
 	delta = minf(delta, 1.0 / 30.0)
 	var screen := get_viewport_rect().size
-	var vs := screen / ZOOM
+	var vs := screen / _zoom
 	if hitstop > 0.0:
 		hitstop -= delta
 		return
@@ -257,7 +273,7 @@ func _process(delta: float) -> void:
 	var look: float = player.velocity().x * 0.25
 	_cam_x = lerpf(_cam_x, player.position.x + look, clampf(5.0 * delta, 0, 1))
 	var chase_view: bool = developer.is_chasing() or state == State.CAPTURE
-	_cam_frac = move_toward(_cam_frac, PLAYER_SCREEN_Y_CHASE if chase_view else PLAYER_SCREEN_Y, delta * 0.2)
+	_cam_frac = move_toward(_cam_frac, _chase_frac if chase_view else PLAYER_SCREEN_Y, delta * 0.2)
 	camera.position = Vector2(_cam_x, player.position.y + (0.5 - _cam_frac) * vs.y)
 	_update_chip_indicator(screen)
 	if shake > 0.0:
@@ -384,6 +400,16 @@ func _read_input(vs: Vector2) -> void:
 		elif right:
 			player.steer = 1.0
 
+func _bait_after() -> float:
+	for a in Game.dev_args():
+		if a.begins_with("--chip-bait-after="):
+			return float(a.substr(18))
+	return 0.0
+
+func _exit_tree() -> void:
+	Sfx.set_hiss(0.0)
+	Sfx.set_engine(0.0)
+
 ## Simple bot used by the automated smoke test (run with `-- --autoplay`).
 func _autoplay_input() -> void:
 	var prev := int(_autoplay_t / 5.0)
@@ -409,7 +435,7 @@ func _autoplay_input() -> void:
 				if v.y > 30.0 and v.y < 260.0 and v.length() < nearest:
 					nearest = v.length()
 					goal = clampf(atan2(v.x, v.y), -1.0, 1.0)
-	if developer.is_chasing() and Game.dev_args().has("--chip-bait"):
+	if developer.is_chasing() and Game.dev_args().has("--chip-bait") and developer.t > _bait_after():
 		player.has_target = false
 		player.brake = true # dev: stand still and get acquired (capture screenshots)
 		return
@@ -574,7 +600,7 @@ func _update_developer(delta: float) -> void:
 					if o.id == "moose":
 						o.scare(developer.position.x)
 		return
-	if zone_index < 1 or _calm:
+	if zone_index < 1 or (_calm and not Game.dev_args().has("--chip-now")):
 		return
 	dev_cooldown -= delta
 	if dev_cooldown <= 0.0 and not player.is_down():
@@ -599,7 +625,7 @@ func _on_caught() -> void:
 	state = State.CAPTURE
 	player.caught()
 	tracks.break_line()
-	score.bail()
+	score._reset() # combo is lost quietly; no popup over Chip's pitch
 	Sfx.set_hiss(0.0)
 	Game.vibrate(120)
 	shake = 6.0
@@ -633,7 +659,7 @@ func _set_zone(i: int) -> void:
 		Sfx.play("zone")
 		score.add_raw(500 * i)
 		_popup("NEW PHASE +%d" % (500 * i), player.position + Vector2(0, -90), Color8(88, 200, 100))
-		if i == 1:
+		if i == 1 and not Game.dev_args().has("--chip-now"):
 			dev_cooldown = 6.0
 
 func _on_event_started(id: String, title: String, subtitle: String) -> void:
@@ -729,6 +755,8 @@ func _set_paused(on: bool) -> void:
 	_touches.clear()
 
 func _restart() -> void:
+	if get_tree().current_scene != self:
+		return # embedded (e.g. trailer / tests): the host decides what happens next
 	get_tree().paused = false
 	get_tree().reload_current_scene()
 
