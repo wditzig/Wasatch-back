@@ -1,0 +1,46 @@
+; Engine configuration file.
+; WASATCH BACK - Take Back the Mountain.
+
+config_version=5
+
+[application]
+
+config/name="Wasatch Back"
+config/description="Take Back the Mountain. A satirical retro downhill game."
+run/main_scene="res://scenes/main_menu.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+boot_splash/bg_color=Color(0.078, 0.102, 0.2, 1)
+boot_splash/show_image=false
+config/icon="res://icon.svg"
+
+[autoload]
+
+Game="*res://scripts/autoload/game_state.gd"
+Art="*res://scripts/autoload/art.gd"
+Sfx="*res://scripts/autoload/audio.gd"
+
+[display]
+
+window/size/viewport_width=360
+window/size/viewport_height=640
+window/size/window_width_override=405
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[physics]
+
+common/physics_ticks_per_second=60
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+environment/defaults/default_clear_color=Color(0.95, 0.97, 1, 1)
+2d/snap/snap_2d_vertices_to_pixel=true
