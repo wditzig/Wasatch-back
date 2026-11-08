@@ -40,7 +40,9 @@ Ski downhill → dodge, jump, trick, collect → build a combo → bank it → m
 - In the air: **360** (tap), **BACKFLIP** (swipe up), **GRAB** (swipe down, satirical grab names). One trick can be queued after the current one.
 - Chains collapse into names: 360+360 = **720**, flip+flip = **DOUBLE BACKFLIP**, mixed = "BACKFLIP + 360" (×1.5).
 - Landing with >20% of a trick left = **bail** (crash, lose a life and the combo).
-- Airborne riders clear anything not flagged `tall` (rocks, cones, fences, hot tubs, drones, toll arms…). Trees and buildings still hit.
+- **Kicker jumps clear everything** — trees and buildings included — until the landing (the last ~15% of the flight). Land on a tree and you still crash.
+- Hops and mogul pops only clear things not flagged `tall` (rocks, cones, fences, moose, hot tubs, drones, toll arms…).
+- `tools/jump_test.tscn` checks both cases (obstacles just past a kicker, and a tree under the landing).
 
 ## 6. Scoring
 | Source | Points |

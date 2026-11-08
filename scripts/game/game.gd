@@ -87,6 +87,13 @@ func _ready() -> void:
 		if a.begins_with("--start-m="):
 			player.position.y = float(a.substr(10)) * PX_PER_M
 			dev_cooldown = 3.0
+	if Game.dev_args().has("--jump-test"):
+		# Dev: obstacles right past the start kicker (which sits at y=330)
+		var specs := [["pine_big", 362.0], ["rock", 400.0], ["pine_small", 440.0]]
+		if Game.dev_args().has("--jump-test-landing"):
+			specs = [["pine_big", 362.0], ["pine_big", 612.0]] # 2nd tree under the landing
+		for spec in specs:
+			spawner._spawn(spec[0], Vector2(0, spec[1]), RandomNumberGenerator.new())
 	_set_zone(0)
 	hud.set_lives(lives)
 	hud.set_headline("Welcome to the Wasatch. It's public land - enjoy it while it lasts.", events.gondola_eta())
@@ -502,7 +509,7 @@ func _contact(o) -> void:
 			hud.show_message(String(o.def.get("msg", "Oof.")))
 			shake = 3.0
 		"solid":
-			if (air and not o.tall) or player.invuln > 0.0:
+			if player.clears(o.tall) or player.invuln > 0.0:
 				return
 			o.wobble()
 			if o.id == "moose":
@@ -513,6 +520,8 @@ func _contact(o) -> void:
 			_crash(String(o.def.get("msg", "Wipeout.")))
 
 func _crash(msg: String) -> void:
+	if Game.dev_args().has("--jump-test"):
+		print("JUMPTEST crash at y=%d (%s) airborne_h=%.1f" % [int(player.position.y), msg, player.height])
 	player.crash()
 	tracks.break_line()
 	if not _calm:

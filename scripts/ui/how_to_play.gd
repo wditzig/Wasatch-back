@@ -23,7 +23,7 @@ const PAGES := [
 	{
 		"title": "THE MOUNTAIN",
 		"art": [["token", false], ["powder", false], ["pine_big", false], ["rock", false], ["cone", false]],
-		"body": "[color=#58c864]COLLECT:[/color] gold Public Access Passes. [color=#58c864]RIDE:[/color] kickers and moguls for air. Snowboarders surf deep powder; skiers bog down in it. Blue ice makes turning harder.\n\n[color=#ff8a24]AVOID:[/color] trees, buildings, towers and heavy machinery always hurt. Rocks, fences, moose and hot tubs crash you too - but you can jump them. Cones, stumps and stakes just trip you up.\n\nToll gates and paywalls cost points - unless you jump them.",
+		"body": "[color=#58c864]COLLECT:[/color] gold Public Access Passes. [color=#58c864]RIDE:[/color] kickers and moguls for air. Snowboarders surf deep powder; skiers bog down in it. Blue ice makes turning harder.\n\n[color=#ff8a24]AVOID:[/color] trees, buildings, towers and heavy machinery - unless you're flying off a kicker, which clears everything until you come down to land. A quick hop clears rocks, fences, moose and hot tubs. Cones, stumps and stakes just trip you up.\n\nToll gates and paywalls cost points - unless you jump them.",
 	},
 	{
 		"title": "COMBOS & CHIP",

@@ -39,6 +39,7 @@ var brake := false
 var air_t := 0.0
 var air_dur := 0.0
 var air_peak := 0.0
+var big_air := false # launched by a kicker (vs. a hop or mogul pop)
 var height := 0.0
 var trick := ""            # current trick type ("spin"/"flip"/"grab")
 var trick_t := 0.0
@@ -143,6 +144,17 @@ func is_down() -> bool:
 func velocity() -> Vector2:
 	return Vector2(sin(heading), cos(heading)) * speed
 
+## Whether the rider is currently flying over an obstacle.
+## Kicker jumps clear everything - trees and buildings too - until the
+## landing (last ~15% of the flight). Hops and mogul pops only clear small
+## things (anything not flagged `tall`).
+func clears(tall: bool) -> bool:
+	if state != S.AIR:
+		return false
+	if big_air:
+		return not tall or air_t / air_dur < 0.85
+	return not tall
+
 func feet_rect() -> Rect2:
 	return Rect2(position.x - 5, position.y - 6, 10, 6)
 
@@ -179,6 +191,7 @@ func launch(duration: float, peak: float) -> void:
 	air_t = 0.0
 	air_dur = duration * float(rider["air_mult"])
 	air_peak = peak * float(rider["air_mult"])
+	big_air = false
 	trick = ""
 	queued = ""
 	tricks_done = []
@@ -198,6 +211,7 @@ func _puff() -> void:
 func launch_from_ramp(ramp_air: float) -> void:
 	var dur := (0.55 + speed / 380.0) * ramp_air
 	launch(dur, 26.0 + speed * 0.09 * ramp_air)
+	big_air = state == S.AIR
 
 func _start_or_queue(kind: String) -> void:
 	# A quick hop is too short to rotate - ignore spin/flip so a double-tap can't cause a bail.
@@ -348,6 +362,8 @@ func _land() -> void:
 	state = S.SKI
 	_squash(Vector2(1.3, 0.75))
 	_puff()
+	if Game.dev_args().has("--jump-test"):
+		print("JUMPTEST landed at y=%d" % int(position.y))
 	landed.emit(air_dur, tricks_done.duplicate())
 
 ## Combines a list of completed tricks into a display name: "720", "DOUBLE BACKFLIP"...
