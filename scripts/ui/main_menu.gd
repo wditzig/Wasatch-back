@@ -30,6 +30,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--open="):
 			_open(a.substr(7))
+		elif a == "--autoplay":
+			get_tree().create_timer(1.0).timeout.connect(_play)
 
 func _build_main() -> void:
 	var margin := MarginContainer.new()

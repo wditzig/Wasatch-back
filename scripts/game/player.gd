@@ -144,6 +144,9 @@ func launch_from_ramp(ramp_air: float) -> void:
 	launch(dur, 26.0 + speed * 0.09 * ramp_air)
 
 func _start_or_queue(kind: String) -> void:
+	# A quick hop is too short to rotate - ignore spin/flip so a double-tap can't cause a bail.
+	if kind != "grab" and air_dur < 0.6:
+		return
 	if trick == "":
 		_start_trick(kind)
 	elif queued == "":
@@ -186,6 +189,7 @@ func update(delta: float) -> void:
 		S.SKI: _update_ski(delta)
 		S.AIR: _update_air(delta)
 		S.CRASH:
+			invuln = 1.6
 			crash_t -= delta
 			if crash_t <= 0.0:
 				state = S.SKI

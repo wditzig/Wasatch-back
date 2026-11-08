@@ -75,7 +75,7 @@ func _ready() -> void:
 		hud.show_hint("HOLD + DRAG TO STEER\nTAP = HOP / 360   SWIPE UP = BACKFLIP\nSWIPE DOWN = GRAB", 5.0)
 	else:
 		hud.show_hint("HOLD LEFT / RIGHT SIDE TO TURN\nTAP = HOP / 360   SWIPE UP = BACKFLIP\nSWIPE DOWN = GRAB", 5.0)
-	if not OS.has_feature("mobile"):
+	if not (OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")):
 		hud.show_message("KEYS: ARROWS steer  DOWN tuck  UP brake\nSPACE hop/360  K backflip  L grab")
 	Sfx.set_music_pitch(1.0)
 
@@ -362,6 +362,8 @@ func _autoplay_input() -> void:
 
 # ---------------------------------------------------------------- collisions
 func _check_collisions() -> void:
+	if player.is_down():
+		return
 	var feet: Rect2 = player.feet_rect()
 	var py: float = player.position.y
 	for o in spawner.active:
@@ -462,8 +464,10 @@ func _crash(msg: String) -> void:
 	hitstop = 0.06
 	_burst(player.position)
 	hud.show_message(msg)
-	if lives <= 0:
-		get_tree().create_timer(1.0).timeout.connect(func(): _game_over("SEASON PASS REVOKED", msg))
+	if lives == 0:
+		get_tree().create_timer(1.0).timeout.connect(func():
+			if is_inside_tree():
+				_game_over("SEASON PASS REVOKED", msg))
 
 func _on_landed(air_time: float, tricks: Array) -> void:
 	Sfx.play("land", 0.1, -2.0)

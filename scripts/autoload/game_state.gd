@@ -161,5 +161,5 @@ func record_run(score: int, distance_m: float, tokens: int, cause: String) -> Di
 	return {"rank": rank, "new_best": new_best, "unlocked": unlocked}
 
 func vibrate(ms: int) -> void:
-	if settings.get("haptics", true) and (OS.has_feature("android") or OS.has_feature("ios")):
+	if settings.get("haptics", true) and (OS.has_feature("android") or OS.has_feature("ios") or OS.has_feature("web_android")):
 		Input.vibrate_handheld(ms)
