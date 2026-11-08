@@ -15,6 +15,8 @@ const Zones = preload("res://scripts/data/zones.gd")
 
 const PX_PER_M := 16.0
 const PLAYER_SCREEN_Y := 0.32
+## While Chip chases, the camera eases down so you can see him behind you.
+const PLAYER_SCREEN_Y_CHASE := 0.45
 const START_LIVES := 3
 const CLOSE_CALL_GAP := 16.0
 const DIFFICULTY_FULL_M := 4500.0
@@ -63,6 +65,7 @@ var fog_strength := 0.0
 var fog_target := 0.0
 var hitstop := 0.0
 var _cam_x := 0.0
+var _cam_frac := PLAYER_SCREEN_Y
 var _touches := {}
 var _steer_touch := -1
 var _clear_color := Color(0.95, 0.97, 1.0)
@@ -246,7 +249,10 @@ func _process(delta: float) -> void:
 	# camera
 	var look: float = player.velocity().x * 0.25
 	_cam_x = lerpf(_cam_x, player.position.x + look, clampf(5.0 * delta, 0, 1))
-	camera.position = Vector2(_cam_x, player.position.y + (0.5 - PLAYER_SCREEN_Y) * vs.y)
+	var chase_view: bool = developer.is_chasing() or state == State.CAPTURE
+	_cam_frac = move_toward(_cam_frac, PLAYER_SCREEN_Y_CHASE if chase_view else PLAYER_SCREEN_Y, delta * 0.2)
+	camera.position = Vector2(_cam_x, player.position.y + (0.5 - _cam_frac) * vs.y)
+	_update_chip_indicator(screen)
 	if shake > 0.0:
 		shake = maxf(0.0, shake - delta * 20.0)
 		var amt: float = shake if Game.settings.get("shake", true) else 0.0
@@ -567,6 +573,15 @@ func _update_developer(delta: float) -> void:
 		Sfx.play("alarm")
 		hud.warn("! THE DEVELOPER WANTS YOUR LINE - TUCK & RUN !", 3.5)
 
+## Off-screen tracker: Chip's face and current line pinned to the top edge.
+func _update_chip_indicator(screen: Vector2) -> void:
+	if not developer.is_chasing():
+		hud.set_chip_indicator(false)
+		return
+	var sp: Vector2 = developer.get_global_transform_with_canvas().origin
+	var off: bool = sp.y - 30.0 < 50.0 or sp.x < -10.0 or sp.x > screen.x + 10.0
+	hud.set_chip_indicator(off, clampf(sp.x, 40.0, screen.x - 40.0), developer.current_line)
+
 func _on_caught() -> void:
 	if state != State.PLAYING:
 		return
@@ -580,6 +595,7 @@ func _on_caught() -> void:
 	Game.vibrate(120)
 	shake = 6.0
 	hud.clear_warning()
+	hud.set_chip_indicator(false)
 	developer.capture(player)
 
 # ---------------------------------------------------------------- zones & events

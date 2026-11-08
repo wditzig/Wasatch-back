@@ -158,6 +158,7 @@ func _procedural(id: String) -> Image:
 		"pixel": return _pixel()
 		"shadow_soft": return _shadow_soft()
 		"arrow_up": return _arrow(true)
+		"chip_face": return tex("developer").get_image().get_region(Rect2i(5, 0, 14, 10))
 		"arrow_down": return _arrow(false)
 		"ground_detail": return _ground_detail()
 		"d_treads": return _treads()

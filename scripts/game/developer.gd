@@ -19,6 +19,12 @@ const SCALE := 2.0
 const CHASE_TIME := 15.0
 const TURN_RATE := 4.2 # rad/s; tight enough to cut corners, loose enough to juke
 const CAPTURE_TIME := 1.9
+## Chip's chase runs on his true position (_vpos); he is only *drawn* at most
+## LEASH px behind you, so after you outrun him he hangs at the top of the
+## screen, visible and still talking, while the real gap (and therefore the
+## difficulty) is exactly what it would have been.
+const LEASH := 118.0
+const LINE_TIME := 2.8
 const LINES := ["LET'S TALK EQUITY!", "SIGN HERE!", "I'LL MAKE YOU AN OFFER!", "YOU'RE ON MY LAND!",
 	"THINK OF THE SHAREHOLDERS!", "PUBLIC? NOT FOR LONG!", "I LOVE NATURE! I OWN SOME!", "DON'T MAKE ME REZONE YOU!",
 	"NICE LINE. I'LL TAKE IT!", "THIS RUN IS UNDER CONTRACT!"]
@@ -38,6 +44,9 @@ var _leave_dir := 1.0
 var _cap_from := Vector2.ZERO
 var _cap_to := Vector2.ZERO
 var _cap_stage := 0
+var _bag: Array = []
+var current_line := ""
+var _vpos := Vector2.ZERO
 
 func _ready() -> void:
 	visible = false
@@ -107,23 +116,44 @@ func is_chasing() -> bool:
 func start(player_pos: Vector2) -> void:
 	state = S.CHASE
 	t = 0.0
-	position = player_pos + Vector2(randf_range(-90, 90), -380)
+	position = player_pos + Vector2(randf_range(-90, 90), -300)
+	_vpos = position
 	vel = Vector2(0, 1)
 	visible = true
 	modulate.a = 1.0
 	z_index = 5
 	exhaust.emitting = true
 	spray.emitting = true
-	_say(LINES[randi() % LINES.size()])
+	_say(_next_line())
+
+## Shuffle-bag: every line is heard before any repeats.
+func _next_line() -> String:
+	if _bag.is_empty():
+		_bag = LINES.duplicate()
+		_bag.shuffle()
+		if _bag[0] == current_line:
+			_bag.push_back(_bag.pop_front())
+	return _bag.pop_front()
 
 func _say(text: String, width := 124.0) -> void:
 	bubble.text = text
+	current_line = text
 	bubble.custom_minimum_size = Vector2(width, 0)
 	bubble.size = Vector2(width, 0)
 	bubble.reset_size()
-	bubble.position = Vector2(-width * 0.5, body.position.y - bubble.get_combined_minimum_size().y - 4.0)
+	_place_bubble()
 	bubble.visible = true
-	_line_t = 2.6
+	_line_t = LINE_TIME
+
+## Bubble above Chip, unless that would put it off the top of the screen
+## (under the HUD bar) - then it flips below him.
+func _place_bubble() -> void:
+	var w := bubble.custom_minimum_size.x
+	var h := bubble.get_combined_minimum_size().y
+	var above := -body.texture.get_height() * SCALE - h - 4.0
+	var zoom := get_global_transform_with_canvas().get_scale().y
+	var screen_top := get_global_transform_with_canvas().origin.y + above * zoom
+	bubble.position = Vector2(-w * 0.5, above if screen_top > 84.0 or state == S.CAPTURE else 6.0)
 
 ## Snowmobile body for catching the rider (world space).
 func grab_rect() -> Rect2:
@@ -135,15 +165,19 @@ func update(delta: float, player: Node2D, player_max: float) -> void:
 			t += delta
 			_line_t -= delta
 			if _line_t <= 0.0:
-				_say(LINES[randi() % LINES.size()])
+				_say(_next_line())
+			else:
+				_place_bubble()
 			speed = player_max * lerpf(0.88, 1.12, clampf(t / 12.0, 0.0, 1.0))
-			var to: Vector2 = player.position - position
+			var to: Vector2 = player.position - _vpos
 			var want := to.normalized() if to.length() > 1.0 else vel.normalized()
 			var cur := vel.normalized() if vel.length() > 0.01 else want
 			var ang := cur.angle_to(want)
 			cur = cur.rotated(clampf(ang, -TURN_RATE * delta, TURN_RATE * delta))
 			vel = cur * speed
-			position += vel * delta
+			_vpos += vel * delta
+			var back: Vector2 = _vpos - player.position
+			position = player.position + back.normalized() * LEASH if back.y < 0.0 and back.length() > LEASH else _vpos
 			body.flip_h = vel.x < -10.0
 			body.position.y = -body.texture.get_height() * SCALE + (1.0 if int(t * 30.0) % 2 == 0 else 0.0) # engine rattle
 			if grab_rect().intersects(player.feet_rect()) and not player.is_airborne() and player.state != player.S.CAUGHT:
@@ -193,6 +227,7 @@ func capture(player: Node2D) -> void:
 	modulate.a = 1.0
 	z_index = 55 # bubble above everything
 	var side := 1.0 if position.x >= player.position.x else -1.0
+	_vpos = position
 	_cap_from = position
 	_cap_to = player.position + Vector2(36.0 * side, 2.0)
 	body.flip_h = side > 0.0 # face the rider

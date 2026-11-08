@@ -170,6 +170,9 @@ func _layout() -> void:
 	hint_l.position = Vector2(12, vs.y * 0.82)
 	lives_box.position = Vector2((vs.x - lives_box.get_combined_minimum_size().x) * 0.5, 6)
 	combo_bar_bg.position = Vector2((vs.x - 120) * 0.5, 74)
+	# Warnings sit below the rider so they never cover Chip arriving from behind.
+	warn_l.size = Vector2(vs.x, 0)
+	warn_l.position = Vector2(0, vs.y * 0.6)
 	combo_bar.position = combo_bar_bg.position
 
 func _process(delta: float) -> void:
@@ -255,6 +258,45 @@ func show_hint(text: String, dur := 4.0) -> void:
 	var tw := create_tween()
 	tw.tween_interval(dur)
 	tw.tween_property(hint_l, "modulate:a", 0.0, 0.8)
+
+var _chip_ind: Control
+var _chip_ind_l: Label
+
+func _build_chip_indicator() -> void:
+	_chip_ind = Control.new()
+	_chip_ind.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_chip_ind.visible = false
+	root.add_child(_chip_ind)
+	var arrow := UI.sprite_rect(Art.tex("arrow_up"), 2.0)
+	arrow.modulate = UI.RED
+	arrow.position = Vector2(-11, 0)
+	_chip_ind.add_child(arrow)
+	var face := UI.sprite_rect(Art.tex("chip_face"), 2.5)
+	face.position = Vector2(-17.5, 14)
+	_chip_ind.add_child(face)
+	_chip_ind_l = UI.label("", 10, UI.NAVY, HORIZONTAL_ALIGNMENT_CENTER)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color.WHITE
+	sb.border_color = UI.NAVY
+	sb.set_border_width_all(2)
+	sb.set_content_margin_all(3)
+	_chip_ind_l.add_theme_stylebox_override("normal", sb)
+	_chip_ind_l.custom_minimum_size = Vector2(150, 0)
+	_chip_ind_l.position = Vector2(-75, 42)
+	_chip_ind.add_child(_chip_ind_l)
+
+## Shows Chip's face + line at the top edge while he's off-screen.
+func set_chip_indicator(on: bool, x := 0.0, text := "") -> void:
+	if _chip_ind == null:
+		_build_chip_indicator()
+	_chip_ind.visible = on
+	if not on:
+		return
+	var w := root.get_viewport_rect().size.x
+	_chip_ind.position = Vector2(clampf(x, 80.0, w - 80.0), 48)
+	if _chip_ind_l.text != text:
+		_chip_ind_l.text = text
+		_chip_ind_l.reset_size()
 
 func clear_warning() -> void:
 	_warn_t = 0.0
