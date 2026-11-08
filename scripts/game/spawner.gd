@@ -11,6 +11,10 @@ const CELL := 80.0
 const PX_PER_M := 16.0
 const SAFE_START_Y := 420.0
 const TOWER_SPACING := 560.0
+## The plain PUBLIC LAND sign only appears in roughly the first 15 seconds
+## (~160 m). Past that, its slot becomes a small pine so obstacle count and
+## difficulty are unchanged.
+const PUBLIC_SIGN_MAX_Y := 160.0 * PX_PER_M
 
 var world: Node2D
 var run_seed := 0
@@ -77,6 +81,8 @@ func _gen_cell(cx: int, cy: int, difficulty: float) -> void:
 	if id == "":
 		return
 	var pos := Vector2(cx * CELL + rng.randf_range(8, CELL - 8), y0 + rng.randf_range(8, CELL - 8))
+	if id == "sign_public" and pos.y > PUBLIC_SIGN_MAX_Y:
+		id = "pine_small"
 	var def: Dictionary = Obs.DEFS[id]
 	if def.has("parts"):
 		for part in def["parts"]:
