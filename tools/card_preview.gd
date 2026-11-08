@@ -1,5 +1,5 @@
 extends Node
-## Renders sample share cards to user:// (or `-- --out=<dir>`) for review.
+## Renders sample share cards and the social preview image (og-image.png) to user:// (or `-- --out=<dir>`) for review.
 ## Run: godot --headless res://tools/card_preview.tscn -- --out=/tmp
 const Share = preload("res://scripts/ui/share.gd")
 const Riders = preload("res://scripts/data/riders.gd")
@@ -16,4 +16,5 @@ func _ready() -> void:
 	for i in samples.size():
 		Share.make_card(samples[i]).save_png(out.path_join("card_%d.png" % i))
 		print(Share.message(samples[i]))
+	Share.make_social_image().save_png(out.path_join("og-image.png"))
 	get_tree().quit()

@@ -30,7 +30,10 @@ var _shot_every := 2.0
 var _shot_t := 0.0
 var _shot_n := 0
 
+const TITLE := "Wasatch Back — You Can't Ski Free"
+
 func _ready() -> void:
+	DisplayServer.window_set_title(TITLE)
 	_setup_input()
 	load_game()
 	# Dev tool: `-- --shots=<dir> [--shot-every=2]` saves periodic screenshots.

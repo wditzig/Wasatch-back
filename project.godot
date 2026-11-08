@@ -6,7 +6,7 @@ config_version=5
 [application]
 
 config/name="Wasatch Back"
-config/description="Take Back the Mountain. A satirical retro downhill game."
+config/description="You Can't Ski Free. A retro skiing game about the commercialization of Utah's mountains."
 run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 boot_splash/bg_color=Color(0.078, 0.102, 0.2, 1)

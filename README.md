@@ -1,5 +1,7 @@
 # WASATCH BACK
-**Take Back the Mountain.**
+**YOU CAN'T SKI FREE.**
+
+*WASATCH BACK is the game. YOU CAN'T SKI FREE is the punchline. TAKE BACK THE MOUNTAIN is the larger message.*
 
 A satirical, retro downhill skiing & snowboarding game for iOS and Android, set on a fictionalized Wasatch Range that gets steadily paved over by luxury development, a perpetually delayed gondola, and data centers — while you try to outrun a real-estate developer on a gold-trimmed snowmobile.
 

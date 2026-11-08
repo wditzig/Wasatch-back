@@ -1,6 +1,12 @@
 # WASATCH BACK — Game Design Document
 
-**Tagline:** Take Back the Mountain.
+**Title:** WASATCH BACK  
+**Tagline:** YOU CAN'T SKI FREE. (a play on the 1990s classic and the commercialization of Utah's public lands)  
+**Supporting line:** THE GREATEST SNOW ON EARTH. TERMS APPLY.  
+**Larger message:** TAKE BACK THE MOUNTAIN.
+
+### Tagline in play
+The run opens with **SKI FREE!**. Each phase banner, and the property line painted across the slope there, takes a little more of it back: PUBLIC ACCESS SUBJECT TO CHANGE → YOUR MOUNTAIN. THEIR INVESTMENT. → POWDER NOW AVAILABLE BY SUBSCRIPTION → THE GREATEST SNOW ON EARTH. TERMS APPLY. A final line painted at 4,800 m reads **YOU CAN'T SKI FREE.** The game-over screen rotates through YOU CAN'T SKI FREE / THE DEVELOPERS WIN THIS ROUND / PUBLIC ACCESS REVOKED / YOUR POWDER HAS BEEN REZONED / THANK YOU FOR VISITING. PARKING IS $85.
 **Genre:** Endless downhill arcade (top-down), 1990s PC-arcade inspired, original IP.
 **Platforms:** iOS, Android (portrait, one thumb). Desktop for development.
 **Session length:** 30 s – 4 min. Instant restart.

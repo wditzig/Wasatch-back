@@ -2,6 +2,8 @@ extends RefCounted
 ## Development stages of the mountain. `density` drives obstacle spawning and
 ## is intentionally low at first (a calm, open start) and rises each phase.
 ## `tint` and `snowfall` are purely visual atmosphere.
+## `subtitle` is the tagline shown with each phase banner; it grows more
+## cynical as the mountain is developed (SKI FREE! -> YOU CAN'T SKI FREE.).
 ## The run advances through these by
 ## distance travelled. All companies and quotes are fictional satire.
 
@@ -9,7 +11,8 @@ const ZONES := [
 	{
 		"id": "pristine",
 		"name": "PRISTINE PUBLIC LAND",
-		"subtitle": "Fresh powder. Open to everyone. For now.",
+		"subtitle": "Fresh powder. Open to everyone.",
+		"slogan": "SKI FREE!",
 		"start_m": 0,
 		"snow": Color(0.95, 0.97, 1.0),
 		"speckle": Color(0.62, 0.72, 0.9),
@@ -21,7 +24,7 @@ const ZONES := [
 	{
 		"id": "construction",
 		"name": "PHASE 1: GROUNDBREAKING",
-		"subtitle": "MONOPEAK HOLDINGS breaks ground on the GONDOLUX(tm).",
+		"subtitle": "PUBLIC ACCESS SUBJECT TO CHANGE.",
 		"start_m": 600,
 		"snow": Color(0.93, 0.94, 0.96),
 		"speckle": Color(0.6, 0.55, 0.5),
@@ -33,7 +36,7 @@ const ZONES := [
 	{
 		"id": "luxury",
 		"name": "PHASE 2: LUXURY LIVING",
-		"subtitle": "Slopeside 'cabins' from $24M. Mountain sold separately.",
+		"subtitle": "YOUR MOUNTAIN. THEIR INVESTMENT.",
 		"start_m": 1400,
 		"snow": Color(0.94, 0.93, 0.92),
 		"speckle": Color(0.7, 0.6, 0.45),
@@ -45,7 +48,7 @@ const ZONES := [
 	{
 		"id": "datacenter",
 		"name": "PHASE 3: THE CLOUD",
-		"subtitle": "GRANITECORE DATA: 'Your snowpack is our coolant.'",
+		"subtitle": "POWDER NOW AVAILABLE BY SUBSCRIPTION.",
 		"start_m": 2400,
 		"snow": Color(0.88, 0.9, 0.93),
 		"speckle": Color(0.45, 0.5, 0.58),
@@ -57,7 +60,7 @@ const ZONES := [
 	{
 		"id": "privatized",
 		"name": "FINAL PHASE: PRIVATIZED",
-		"subtitle": "Thank you for skiing MONOPEAK(tm). Your card has been charged.",
+		"subtitle": "THE GREATEST SNOW ON EARTH. TERMS APPLY.",
 		"start_m": 3600,
 		"snow": Color(0.86, 0.85, 0.88),
 		"speckle": Color(0.5, 0.4, 0.55),

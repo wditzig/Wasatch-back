@@ -24,6 +24,11 @@ const HEADLINES := [
 	"Wildlife corridor converted to 'Wildlife Experience Corridor.' $29.99.",
 	"Local skier discovers public land. MONOPEAK lawyers dispatched.",
 	"Snow now 18% artificial, 82% marketing.",
+	"MONOPEAK HOLDINGS breaks ground on the GONDOLUX(tm).",
+	"Slopeside 'cabins' from $24M. Mountain sold separately.",
+	"GRANITECORE DATA: 'Your snowpack is our coolant.'",
+	"Thank you for skiing MONOPEAK(tm). Your card has been charged.",
+	"New resort motto 'You Can't Ski Free' tests extremely well with shareholders.",
 ]
 
 const GONDOLA_EXCUSES := [

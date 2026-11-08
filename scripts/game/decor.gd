@@ -31,12 +31,14 @@ const DECOR := [
 ]
 const DENSITY := [0.10, 0.22, 0.30, 0.38, 0.48]
 
+## Painted across the slope. Each phase boundary carries that phase's slogan;
+## the last line sits deep in the final phase, where few riders reach.
 const LINES := [
-	{},
-	{"text": "SURVEY LINE  -  GONDOLUX(tm) PHASE 1  -  PUBLIC ACCESS ENDS", "color": Color8(240, 138, 36)},
-	{"text": "PRIVATE PROPERTY  -  LOFTSIDE ESTATES  -  RESIDENTS & GUESTS", "color": Color8(200, 148, 32)},
-	{"text": "GRANITECORE DATA CAMPUS  -  AUTHORIZED PERSONNEL ONLY", "color": Color8(42, 124, 168)},
-	{"text": "MONOPEAK(tm) MEMBERS ONLY BEYOND THIS LINE  -  OWN THE VIEW", "color": Color8(138, 74, 192)},
+	{"m": 600, "text": "SURVEY LINE  -  PUBLIC ACCESS SUBJECT TO CHANGE.", "color": Color8(240, 138, 36)},
+	{"m": 1400, "text": "LOFTSIDE ESTATES  -  YOUR MOUNTAIN. THEIR INVESTMENT.", "color": Color8(200, 148, 32)},
+	{"m": 2400, "text": "GRANITECORE DATA CAMPUS  -  POWDER NOW AVAILABLE BY SUBSCRIPTION.", "color": Color8(42, 124, 168)},
+	{"m": 3600, "text": "MONOPEAK(tm) MEMBERS ONLY  -  THE GREATEST SNOW ON EARTH. TERMS APPLY.", "color": Color8(138, 74, 192)},
+	{"m": 4800, "text": "YOU CAN'T SKI FREE.", "color": Color8(216, 54, 60)},
 ]
 
 var run_seed := 0
@@ -146,8 +148,8 @@ func _animate(delta: float) -> void:
 
 # ---------------------------------------------------------------- property lines
 func _draw() -> void:
-	for i in range(1, LINES.size()):
-		var y: float = float(Zones.ZONES[i]["start_m"]) * PX_PER_M
+	for i in LINES.size():
+		var y: float = float(LINES[i]["m"]) * PX_PER_M
 		if y < _view.position.y - 20.0 or y > _view.end.y + 20.0:
 			continue
 		var c: Color = LINES[i]["color"]
@@ -157,10 +159,10 @@ func _draw() -> void:
 			draw_rect(Rect2(x, y, 14, 3), Color(c, 0.75))
 			x += 24.0
 		var text: String = LINES[i]["text"]
-		var tx := floorf(_view.position.x / 420.0) * 420.0 - 420.0
+		var tx := floorf(_view.position.x / 520.0) * 520.0 - 520.0
 		while tx < _view.end.x:
 			draw_string(_font, Vector2(tx + 10.0, y + 16.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(c, 0.8))
-			tx += 420.0
+			tx += 520.0
 
 # ---------------------------------------------------------------- flyovers
 func _update_fly(delta: float, dy: float, zone_index: int, closed: bool) -> void:

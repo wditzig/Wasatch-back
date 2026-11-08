@@ -219,13 +219,14 @@ func set_combo(count: int, pool: int, mult: float, timer_frac: float) -> void:
 func _mult_str(m: float) -> String:
 	return str(int(m)) if is_equal_approx(m, roundf(m)) else "%.1f" % m
 
-func show_banner(title: String, sub: String, color := Color.WHITE) -> void:
+func show_banner(title: String, sub: String, color := Color.WHITE, sub_color := Color.WHITE) -> void:
 	banner.texture = Art.text_tex(title, color)
 	var sc := 2.0
 	if banner.texture.get_width() * 2.0 > root.get_viewport_rect().size.x - 16:
 		sc = 1.5
 	banner.custom_minimum_size = banner.texture.get_size() * sc
 	banner_sub.text = sub
+	banner_sub.add_theme_color_override("font_color", sub_color)
 	_layout()
 	for n in [banner, banner_sub]:
 		var tw := create_tween()
@@ -293,6 +294,14 @@ func _build_over() -> void:
 	over_ov["root"].visible = false
 
 const CHARSET := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-!"
+## Rotating punchlines on the results screen (one per run, in turn).
+const OVER_LINES := [
+	"YOU CAN'T SKI FREE.",
+	"THE DEVELOPERS WIN THIS ROUND.",
+	"PUBLIC ACCESS REVOKED.",
+	"YOUR POWDER HAS BEEN REZONED.",
+	"THANK YOU FOR VISITING. PARKING IS $85.",
+]
 var _entering := false
 var _initials: Array = ["A", "A", "A"]
 var _slot := 0
@@ -446,6 +455,7 @@ func _show_results(title: String, cause: String, score: int, meters: float, toke
 	var vb := _clear_over()
 	var col := UI.RED if title == "ACQUIRED!" else UI.ORANGE
 	vb.add_child(UI.pixel_text(title, 3.0 if title.length() <= 10 else 2.0, col))
+	vb.add_child(UI.label(OVER_LINES[(Game.runs - 1 + OVER_LINES.size()) % OVER_LINES.size()], 16, UI.GOLD, HORIZONTAL_ALIGNMENT_CENTER, 4))
 	vb.add_child(UI.label(cause, 13, UI.ICE))
 	var sep := HSeparator.new()
 	vb.add_child(sep)

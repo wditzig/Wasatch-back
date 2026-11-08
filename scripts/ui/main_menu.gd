@@ -59,11 +59,17 @@ func _build_main() -> void:
 	logo.pivot_offset = Vector2(162, 75)
 	tw.tween_property(logo, "scale", Vector2(1.025, 1.025), 1.4).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(logo, "scale", Vector2.ONE, 1.4).set_trans(Tween.TRANS_SINE)
-	var tag := UI.label("TAKE BACK THE MOUNTAIN.", 15, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 4)
-	main_box.add_child(tag)
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 4)
-	main_box.add_child(spacer)
+	# The punchline: gold pixel type directly under the title, one quiet
+	# supporting line beneath it.
+	var tag_box := VBoxContainer.new()
+	tag_box.add_theme_constant_override("separation", 2)
+	tag_box.add_child(UI.pixel_text("YOU CAN'T SKI FREE.", 2.5, Color8(255, 216, 74)))
+	var sub := UI.label("THE GREATEST SNOW ON EARTH. TERMS APPLY.", 11, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 0)
+	sub.add_theme_color_override("font_shadow_color", Color(0.08, 0.1, 0.2, 0.9))
+	sub.add_theme_constant_override("shadow_offset_x", 1)
+	sub.add_theme_constant_override("shadow_offset_y", 1)
+	tag_box.add_child(sub)
+	main_box.add_child(tag_box)
 	var play := UI.button("RIDE!", _play, 60)
 	play.add_theme_font_size_override("font_size", 26)
 	main_box.add_child(play)
@@ -318,7 +324,7 @@ func _build_about() -> Dictionary:
 	var vb: VBoxContainer = ov["box"]
 	vb.add_child(UI.pixel_text("ABOUT", 2.5))
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 400)
+	scroll.custom_minimum_size = Vector2(0, 340)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	vb.add_child(scroll)
 	var rt := RichTextLabel.new()
@@ -327,11 +333,16 @@ func _build_about() -> Dictionary:
 	rt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rt.text = ABOUT_TEXT
 	scroll.add_child(rt)
+	var status := UI.label("", 12, UI.GREEN)
+	vb.add_child(UI.button("SHARE THIS GAME", func(): status.text = Share.share_game(), 46))
+	vb.add_child(status)
 	vb.add_child(UI.button("BACK", _close, 44))
 	return ov
 
 const ABOUT_TEXT := """[b][color=#ffd84a]WASATCH BACK[/color][/b]
-Take Back the Mountain.
+YOU CAN'T SKI FREE.
+
+A retro skiing game inspired by the 1990s classics, about the commercialization of Utah's mountains.
 
 [b][color=#ff8a24]THIS IS SATIRE[/color][/b]
 MONOPEAK HOLDINGS, CHIP LODGEWORTH III, the GONDOLUX(tm), GRANITECORE DATA, and every headline, sign and quote in this game are [b]fictional[/b]. Any resemblance to real companies or people is coincidental. Nothing in-game is a factual claim.
@@ -343,6 +354,8 @@ Facts change. For current, official information, see UDOT's Little Cottonwood Ca
 
 [b][color=#58c864]WHY[/color][/b]
 Public lands belong to everyone. Go ride them, learn about them, and show up when decisions about them are made.
+
+[b][color=#ff8a24]TAKE BACK THE MOUNTAIN.[/color][/b]
 
 [b]CREDITS[/b]
 Design, code, pixel art and chiptunes generated procedurally for this prototype. Built with Godot Engine (MIT).

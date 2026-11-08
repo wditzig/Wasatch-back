@@ -566,7 +566,12 @@ func _set_zone(i: int) -> void:
 	t2.tween_property(tint, "color", z["tint"], 2.5 if not first else 0.01)
 	t2.tween_property(snow, "color", z["snowfall"], 2.5 if not first else 0.01)
 	gondola.running = i >= 2
-	hud.show_banner(z["name"], z["subtitle"])
+	if first:
+		# Every run opens with the promise...
+		hud.show_banner("SKI FREE!", "Pristine public land. " + String(z["subtitle"]), Color8(255, 216, 74), Color.WHITE)
+	else:
+		# ...and each phase takes a little more of it back.
+		hud.show_banner(z["name"], z["subtitle"], Color.WHITE, Color8(255, 216, 74))
 	if not first:
 		Sfx.play("zone")
 		score.add_raw(500 * i)
@@ -648,7 +653,11 @@ func _game_over(title: String, cause: String) -> void:
 		"outfit": Game.current_outfit(), "cause": title, "phase": phase}
 	hud.show_game_over(title, cause, score.score, distance_m, tokens, rec, Game.best_score, share_data)
 	if _autoplay:
-		get_tree().create_timer(1.5).timeout.connect(_restart)
+		# the bot "types" its initials, shows the results, then rides again
+		get_tree().create_timer(0.8).timeout.connect(func():
+			if hud.is_entering_initials():
+				hud._initials_done.call())
+		get_tree().create_timer(2.2).timeout.connect(_restart)
 	print("RUN_OVER score=%d distance=%d tokens=%d cause=%s" % [score.score, int(distance_m), tokens, title])
 
 func _set_paused(on: bool) -> void:

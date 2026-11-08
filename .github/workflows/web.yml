@@ -56,6 +56,10 @@ jobs:
         run: |
           mkdir -p build/web
           godot --headless --export-release "Web" build/web/index.html
+          # Static web assets (social preview image) and the page title.
+          cp web/* build/web/
+          sed -i "s|<title>[^<]*</title>|<title>Wasatch Back — You Can’t Ski Free</title>|" build/web/index.html
+          grep -o "<title>[^<]*</title>" build/web/index.html
           ls -la build/web
 
       - uses: actions/upload-pages-artifact@v3

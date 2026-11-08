@@ -6,6 +6,11 @@ const UI = preload("res://scripts/ui/ui_kit.gd")
 
 const PAGES := [
 	{
+		"title": "WELCOME",
+		"art": [["pine_laden", false], ["ski_down", false], ["excavator", false]],
+		"body": "[b][color=#ffd84a]WELCOME TO WASATCH BACK[/color][/b]\n\nThe Greatest Snow on Earth(tm) is under new management.\n\nThe mountains are filling up with developers, luxury resorts, gondola projects and corporate interests.\n\nYour mission is simple: ski as far as you can, dodge the developers, and enjoy what's left of the powder. The farther you go, the harder it gets.\n\nThe mountain used to belong to everyone.\n[b][color=#ffd84a]NOW YOU CAN'T SKI FREE.[/color][/b]",
+	},
+	{
 		"title": "STEER",
 		"art": [["ski_diag", true], ["ski_down", false], ["ski_diag", false]],
 		"body": "[b]Hold & drag[/b] - your rider skis toward your finger.\n\n[color=#ffd84a]Finger far below[/color] = TUCK (faster)\n[color=#ffd84a]Finger above the rider[/color] = BRAKE\n\nPrefer buttons? Settings > TAP ZONES: hold the left or right side to turn.",
@@ -18,7 +23,7 @@ const PAGES := [
 	{
 		"title": "THE MOUNTAIN",
 		"art": [["token", false], ["powder", false], ["pine_big", false], ["rock", false], ["cone", false]],
-		"body": "[color=#58c864]Grab Public Access Passes.[/color] Snowboarders surf powder; skiers bog down in it.\n\n[color=#ff8a24]Trees and buildings always hurt.[/color] You can jump rocks, cones and fences.\n\nToll gates cost points - unless you jump them.\nThe mountain gets busier as it gets developed.",
+		"body": "[color=#58c864]COLLECT:[/color] gold Public Access Passes. [color=#58c864]RIDE:[/color] kickers and moguls for air. Snowboarders surf deep powder; skiers bog down in it. Blue ice makes turning harder.\n\n[color=#ff8a24]AVOID:[/color] trees, buildings, towers and heavy machinery always hurt. Rocks, fences, moose and hot tubs crash you too - but you can jump them. Cones, stumps and stakes just trip you up.\n\nToll gates and paywalls cost points - unless you jump them.",
 	},
 	{
 		"title": "COMBOS & CHIP",
@@ -50,7 +55,7 @@ static func open(parent: Control, on_done: Callable = Callable(), done_label := 
 	body.bbcode_enabled = true
 	body.fit_content = true
 	body.scroll_active = false
-	body.custom_minimum_size = Vector2(0, 200)
+	body.custom_minimum_size = Vector2(0, 236)
 	body.add_theme_font_size_override("normal_font_size", 14)
 	body.add_theme_font_size_override("bold_font_size", 14)
 	vb.add_child(body)
