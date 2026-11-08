@@ -8,6 +8,8 @@ const BG = preload("res://scripts/ui/menu_background.gd")
 const HowToPlay = preload("res://scripts/ui/how_to_play.gd")
 const Share = preload("res://scripts/ui/share.gd")
 
+const MENU_MAX_W := 360.0
+
 var main_box: VBoxContainer
 var panels := {}
 var preview: TextureRect
@@ -41,8 +43,13 @@ func _ready() -> void:
 func _build_main() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 18)
+	# Cap the menu column at MENU_MAX_W and centre it on wide screens.
+	var fit := func():
+		var side := maxf(18.0, (size.x - MENU_MAX_W) * 0.5)
+		for k in ["left", "right"]:
+			margin.add_theme_constant_override("margin_" + k, int(side))
+	resized.connect(fit)
+	fit.call()
 	margin.add_theme_constant_override("margin_top", 28)
 	margin.add_theme_constant_override("margin_bottom", 16)
 	add_child(margin)
