@@ -17,6 +17,7 @@ extends RefCounted
 ## cluster: {"count": [min, max], "step": [dx, dy], "jitter": px}
 ## parts:   compound set pieces: [[def_id, dx, dy], ...]
 ## flat:    drawn under everything (ground decals)
+## label / labels: sign text; with `labels`, one is picked by position
 ## variants: alternative sprites, picked from the obstacle's position (not the
 ##           spawn RNG) so terrain generation stays identical
 
@@ -64,7 +65,7 @@ const DEFS := {
 		"weights": [0, 1.5, 0.8, 0.3, 0.5], "msg": "Port-a-potty. Somehow, it was occupied."},
 	"kicker_big": {"sprite": "kicker_big", "kind": "ramp", "flat": true, "hit": [40, 12], "air": 1.45,
 		"weights": [0, 2, 1.5, 1.5, 1.5]},
-	"sign_soon": {"sprite": "sign", "kind": "solid", "hit": [26, 6], "label": "GONDOLUX\nOPENING SOON",
+	"sign_soon": {"sprite": "sign", "kind": "solid", "hit": [26, 6], "label": "GONDOLUX\nOPENING SOON\nEST. 2057",
 		"weights": [0, 2.5, 1, 0.6, 0.5], "msg": "Read the sign. Became the sign."},
 	"snowcat": {"sprite": "snowcat", "kind": "solid", "tall": true, "hit": [44, 12], "speed": [40, 70],
 		"weights": [0, 1.2, 1, 1, 1], "msg": "Run over by a MONOPEAK snowcat. It did not stop."},
@@ -74,8 +75,8 @@ const DEFS := {
 		"weights": [0, 0, 2.5, 1, 1.8], "msg": "You hit a 14,000 sq ft 'cabin'. The HOA has been notified."},
 	"hot_tub": {"sprite": "hot_tub", "kind": "solid", "hit": [40, 12],
 		"weights": [0, 0, 2, 0.5, 1], "msg": "Hot tub. Members only. You are not a member."},
-	"sign_private": {"sprite": "sign", "kind": "solid", "hit": [26, 6], "label": "PRIVATE\nPOWDER",
-		"weights": [0, 0.3, 2.5, 1, 2], "msg": "PRIVATE POWDER. Violators will be skied at."},
+	"sign_private": {"sprite": "sign", "kind": "solid", "hit": [26, 6], "labels": ["PUBLIC LAND\nPRIVATE POWDER", "FOR SALE\nSTARTING AT\n$1 BILLION"],
+		"weights": [0, 0.3, 2.5, 1, 2], "msg": "Private property. Violators will be invoiced."},
 	"golf_cart": {"sprite": "golf_cart", "kind": "solid", "hit": [30, 10], "speed": [50, 80],
 		"weights": [0, 0, 1.5, 0.5, 1], "msg": "Valet golf cart. Your parking validation was denied."},
 	"toll_plaza": {"parts": [["fence", -136, 0], ["fence", -104, 0], ["toll_booth", -62, 0], ["toll_arm", 0, 0],
@@ -91,8 +92,8 @@ const DEFS := {
 		"weights": [0, 0, 0.3, 2, 1.5], "msg": "High-voltage pylon. Shocking, really."},
 	"drone": {"sprite": "drone", "kind": "solid", "hit": [24, 10], "speed": [60, 100],
 		"weights": [0, 0, 0.3, 1.5, 1.5], "msg": "Delivery drone. Your package: regret."},
-	"sign_hiring": {"sprite": "sign", "kind": "solid", "hit": [26, 6], "label": "NOW HIRING:\n3 JOBS",
-		"weights": [0, 0, 0, 2, 1], "msg": "The sign promised jobs. It delivered pain."},
+	"sign_hiring": {"sprite": "sign", "kind": "solid", "hit": [26, 6], "label": "WE SUPPORT A\nWASATCH BACK\nDATA CENTER",
+		"weights": [0, 0, 0, 2, 1], "msg": "The community support sign was installed by the data center."},
 
 	# --- Final phase ----------------------------------------------------
 	"paywall": {"parts": [["paywall_wall", -144, 0], ["paywall_wall", -96, 0], ["paywall_wall", -48, 0], ["paywall_gate", 0, 0],

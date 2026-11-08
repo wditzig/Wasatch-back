@@ -42,7 +42,7 @@ func _build_main() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 24)
+		margin.add_theme_constant_override("margin_" + side, 18)
 	margin.add_theme_constant_override("margin_top", 28)
 	margin.add_theme_constant_override("margin_bottom", 16)
 	add_child(margin)
@@ -52,11 +52,11 @@ func _build_main() -> void:
 	# Big logo: WASATCH spans the width, BACK hits harder underneath.
 	var logo := VBoxContainer.new()
 	logo.add_theme_constant_override("separation", -6)
-	logo.add_child(UI.pixel_text("WASATCH", 6.8, Color.WHITE))
-	logo.add_child(UI.pixel_text("BACK", 10.0, Color8(255, 138, 36)))
+	logo.add_child(UI.pixel_text("WASATCH", 7.2, Color.WHITE))
+	logo.add_child(UI.pixel_text("BACK", 5.0, Color8(255, 138, 36)))
 	main_box.add_child(logo)
 	var tw := logo.create_tween().set_loops()
-	logo.pivot_offset = Vector2(156, 100)
+	logo.pivot_offset = Vector2(162, 75)
 	tw.tween_property(logo, "scale", Vector2(1.025, 1.025), 1.4).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(logo, "scale", Vector2.ONE, 1.4).set_trans(Tween.TRANS_SINE)
 	var tag := UI.label("TAKE BACK THE MOUNTAIN.", 15, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 4)

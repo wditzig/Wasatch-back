@@ -43,7 +43,10 @@ func setup(p_id: String, p_def: Dictionary, rng: RandomNumberGenerator) -> void:
 		sprite.flip_h = dir > 0.0 and id == "moose" # moose art faces left
 		if id != "moose":
 			sprite.flip_h = dir < 0.0
-	if def.has("label"):
+	if def.has("labels"):
+		var ls: Array = def["labels"]
+		_add_sign_text(String(ls[absi(hash(Vector2i(int(position.x), int(position.y)) * 3)) % ls.size()]))
+	elif def.has("label"):
 		_add_sign_text(String(def["label"]))
 	_t = rng.randf() * TAU
 
@@ -75,7 +78,11 @@ func _add_sign_text(text: String) -> void:
 	var lines := text.split("\n")
 	# Sign board, in world px relative to the base: art rows 1..12, cols 1..28.
 	var ts := sprite.texture.get_size() * SCALE
-	var board := Rect2(-ts.x * 0.5 + SCALE, -ts.y + SCALE, ts.x - 2.0 * SCALE, 12.0 * SCALE)
+	var board := Rect2(-ts.x * 0.5 + SCALE, -ts.y + SCALE, ts.x - 2.0 * SCALE, 16.0 * SCALE)
+	# Shrink one size if the longest line would crowd the board edges.
+	for line in lines:
+		if font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x > board.size.x - 8.0:
+			fsize = 6
 	var txt := Node2D.new()
 	add_child(txt)
 	txt.draw.connect(func():

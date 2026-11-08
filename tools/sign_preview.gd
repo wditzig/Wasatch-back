@@ -9,14 +9,18 @@ func _ready() -> void:
 	var rng := RandomNumberGenerator.new()
 	var i := 0
 	for id in Obs.DEFS.keys():
-		if not Obs.DEFS[id].has("label"):
-			continue
-		var o := ObstacleScript.new()
-		o.position = Vector2(60 + (i % 2) * 120, 90 + (i / 2) * 80)
-		add_child(o)
-		o.setup(id, Obs.DEFS[id], rng)
-		i += 1
+		var d: Dictionary = Obs.DEFS[id]
+		var texts: Array = d.get("labels", [d["label"]] if d.has("label") else [])
+		for t in texts:
+			var dd := d.duplicate()
+			dd.erase("labels")
+			dd["label"] = t
+			var o := ObstacleScript.new()
+			o.position = Vector2(50 + (i % 2) * 100, 70 + (i / 2) * 64)
+			add_child(o)
+			o.setup(id, dd, rng)
+			i += 1
 	var cam := Camera2D.new()
 	cam.zoom = Vector2(2, 2)
-	cam.position = Vector2(120, 190)
+	cam.position = Vector2(100, 160)
 	add_child(cam)
