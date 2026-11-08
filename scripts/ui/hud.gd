@@ -260,7 +260,7 @@ func warn(text: String, dur := 2.5) -> void:
 	_warn_t = dur
 
 func set_headline(text: String, eta: String) -> void:
-	ticker_l.text = "%s   //   GONDOLUX(tm) ETA: %s" % [text, eta]
+	ticker_l.text = "%s   //   GONDOLUX(tm) OPENING SOON: %s" % [text, eta]
 	ticker_l.position.x = root.get_viewport_rect().size.x
 	ticker_l.reset_size()
 

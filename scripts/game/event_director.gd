@@ -2,7 +2,7 @@ extends RefCounted
 ## Timed world events and the fictional MONOPEAK newswire.
 ##   whiteout   - visibility drops, the GONDOLUX closes "due to weather"
 ##   powder_day - fresh snow, all points x2
-## Also tracks the perpetually slipping gondola opening date.
+## Also supplies the GONDOLUX(tm) opening date (EST. 2057, forever) and its excuses.
 
 const Headlines = preload("res://scripts/data/headlines.gd")
 
@@ -16,8 +16,9 @@ var _next_event := 22.0
 var _next_headline := 2.0
 var _headline_idx := 0
 var _order: Array = []
-var gondola_year := 2031
-var gondola_quarter := 4
+## The GONDOLUX(tm) opening date matches the in-game sign: EST. 2057.
+## Delays never move the date, only the excuse.
+const GONDOLA_YEAR := 2057
 var gondola_excuse := "WEATHER"
 
 func _init() -> void:
@@ -25,13 +26,9 @@ func _init() -> void:
 	_order.shuffle()
 
 func gondola_eta() -> String:
-	return "Q%d %d" % [gondola_quarter, gondola_year]
+	return "EST. %d" % GONDOLA_YEAR
 
 func _delay_gondola() -> void:
-	gondola_quarter += randi_range(1, 3)
-	while gondola_quarter > 4:
-		gondola_quarter -= 4
-		gondola_year += 1
 	gondola_excuse = Headlines.GONDOLA_EXCUSES[randi() % Headlines.GONDOLA_EXCUSES.size()]
 
 func update(delta: float, zone_index: int) -> void:
@@ -65,7 +62,7 @@ func _start(id: String) -> void:
 		"whiteout":
 			_timer = 9.0
 			_delay_gondola()
-			event_started.emit(id, "WHITEOUT!", "GONDOLUX(tm) CLOSED DUE TO %s. NEW ETA: %s" % [gondola_excuse, gondola_eta()])
+			event_started.emit(id, "WHITEOUT!", "GONDOLUX(tm) CLOSED DUE TO %s. STILL OPENING %d." % [gondola_excuse, GONDOLA_YEAR])
 		"powder_day":
 			_timer = 10.0
 			event_started.emit(id, "POWDER DAY!", "Fresh public snow. All points x2!")

@@ -84,9 +84,9 @@ Also: tree/rock variants (snow-laden pines, tall spruce, granite slabs), soft co
 Pole-push/skate at low speed, tuck pose, lean into turns, knee flex that quickens with speed, take-off stretch, landing squash + snow puff, arm wobble in the air, crash tumble, then a get-up pose.
 
 ## 9. Events
-- **Whiteout:** vignette fog; gondola "CLOSED DUE TO {WIND|LITIGATION|VIBES…}", ETA slips.
+- **Whiteout:** vignette fog; gondola "CLOSED DUE TO {WIND|LITIGATION|VIBES…}. STILL OPENING 2057."
 - **Powder Day:** heavy snowfall, ×2 points.
-- **MONOPEAK Newswire:** ticker of fictional headlines; any gondola headline pushes the GONDOLUX™ ETA back a few quarters.
+- **MONOPEAK Newswire:** ticker of fictional headlines, always ending "GONDOLUX™ OPENING SOON: EST. 2057" (matching the in-game sign). Delays change the excuse, never the date.
 
 ## 10. Characters & brands (all fictional)
 - **Chip Lodgeworth III** — Founder & Chief Exclusivity Officer, MONOPEAK HOLDINGS. Sunglasses, navy suit, red tie, clipboard, snowmobile. "LET'S TALK EQUITY!"
