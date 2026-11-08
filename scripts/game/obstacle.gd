@@ -44,16 +44,7 @@ func setup(p_id: String, p_def: Dictionary, rng: RandomNumberGenerator) -> void:
 		if id != "moose":
 			sprite.flip_h = dir < 0.0
 	if def.has("label"):
-		var l := Label.new()
-		l.text = def["label"]
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		l.add_theme_font_size_override("font_size", 7)
-		l.add_theme_color_override("font_color", Color8(26, 28, 44))
-		l.add_theme_constant_override("line_spacing", -3)
-		l.size = Vector2(56, 24)
-		l.position = Vector2(-28, -40)
-		add_child(l)
+		_add_sign_text(String(def["label"]))
 	_t = rng.randf() * TAU
 
 ## Visual variety without touching the spawn RNG: the variant is a pure
@@ -74,6 +65,27 @@ func _set_texture(t: Texture2D) -> void:
 		var w := maxf(ts.x * 0.95, hit_size.x + 6.0)
 		shadow.scale = Vector2(w / 32.0, clampf(ts.y / 40.0, 0.7, 1.6))
 		shadow.position = Vector2(ts.x * 0.12, -2.0)
+
+## Text drawn directly onto the sign board, centred on it horizontally and
+## vertically using the font's real metrics (a Label grows from its top-left
+## corner, which pushed the text off-centre).
+func _add_sign_text(text: String) -> void:
+	var font: Font = ThemeDB.fallback_font
+	var fsize := 7
+	var lines := text.split("\n")
+	# Sign board, in world px relative to the base: art rows 1..12, cols 1..28.
+	var ts := sprite.texture.get_size() * SCALE
+	var board := Rect2(-ts.x * 0.5 + SCALE, -ts.y + SCALE, ts.x - 2.0 * SCALE, 12.0 * SCALE)
+	var txt := Node2D.new()
+	add_child(txt)
+	txt.draw.connect(func():
+		var lh := font.get_height(fsize) - 1.0
+		var top := board.get_center().y - lh * lines.size() * 0.5
+		for i in lines.size():
+			var w := font.get_string_size(lines[i], HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
+			var x := board.get_center().x - w * 0.5
+			txt.draw_string(font, Vector2(roundf(x), roundf(top + i * lh + font.get_ascent(fsize))), lines[i],
+				HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, Color8(26, 28, 44)))
 
 func get_hitbox() -> Rect2:
 	return Rect2(position.x - hit_size.x * 0.5, position.y - hit_size.y, hit_size.x, hit_size.y)

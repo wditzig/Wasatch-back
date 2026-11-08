@@ -178,12 +178,12 @@ func _pixel() -> Image:
 	return img
 
 func _sign() -> Image:
-	var img := _img(30, 20)
-	_r(img, 5, 12, 2, 7, "T"); _r(img, 23, 12, 2, 7, "T")
-	_r(img, 0, 0, 30, 14, "K")
-	_r(img, 1, 1, 28, 12, "Y")
-	_r(img, 1, 12, 28, 1, "y")
-	_r(img, 2, 19, 26, 1, "w")
+	var img := _img(36, 20)
+	_r(img, 7, 12, 2, 7, "T"); _r(img, 27, 12, 2, 7, "T")
+	_r(img, 0, 0, 36, 14, "K")
+	_r(img, 1, 1, 34, 12, "Y")
+	_r(img, 1, 12, 34, 1, "y")
+	_r(img, 4, 19, 28, 1, "w")
 	return img
 
 func _porta_potty() -> Image:
