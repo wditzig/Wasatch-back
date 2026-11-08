@@ -157,6 +157,8 @@ func _procedural(id: String) -> Image:
 		"speckle": return _speckle()
 		"pixel": return _pixel()
 		"shadow_soft": return _shadow_soft()
+		"arrow_up": return _arrow(true)
+		"arrow_down": return _arrow(false)
 		"ground_detail": return _ground_detail()
 		"d_treads": return _treads()
 		"d_corduroy": return _corduroy()
@@ -396,6 +398,13 @@ func _speckle() -> Image:
 	return img
 
 # ---------------------------------------------------------------- environment
+func _arrow(up: bool) -> Image:
+	var img := _img(11, 6)
+	for y in 6:
+		var row := y if up else 5 - y
+		_r(img, 5 - row, y, row * 2 + 1, 1, "W")
+	return img
+
 func _shadow_soft() -> Image:
 	# Soft elliptical contact shadow; sun from the upper-left.
 	var img := _img(32, 8)

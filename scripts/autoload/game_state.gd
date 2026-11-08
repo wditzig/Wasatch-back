@@ -23,6 +23,7 @@ var best_score := 0
 var total_tokens := 0
 var runs := 0
 var seen_tutorial := false
+var last_initials := "AAA"
 
 var _shot_dir := ""
 var _shot_every := 2.0
@@ -81,6 +82,7 @@ func load_game() -> void:
 	total_tokens = cf.get_value("profile", "total_tokens", 0)
 	runs = cf.get_value("profile", "runs", 0)
 	seen_tutorial = cf.get_value("profile", "seen_tutorial", false)
+	last_initials = cf.get_value("profile", "last_initials", "AAA")
 	high_scores = cf.get_value("scores", "list", [])
 	var s: Dictionary = cf.get_value("settings", "values", {})
 	for k in s.keys():
@@ -99,6 +101,7 @@ func save_game() -> void:
 	cf.set_value("profile", "total_tokens", total_tokens)
 	cf.set_value("profile", "runs", runs)
 	cf.set_value("profile", "seen_tutorial", seen_tutorial)
+	cf.set_value("profile", "last_initials", last_initials)
 	cf.set_value("scores", "list", high_scores)
 	cf.set_value("settings", "values", settings)
 	cf.save(SAVE_PATH)
@@ -148,6 +151,7 @@ func record_run(score: int, distance_m: float, tokens: int, cause: String, phase
 		"rider": rider,
 		"cause": cause,
 		"phase": phase,
+		"initials": last_initials,
 		"date": Time.get_date_string_from_system(),
 	}
 	high_scores.append(entry)
@@ -162,7 +166,16 @@ func record_run(score: int, distance_m: float, tokens: int, cause: String, phase
 		if not before[o["id"]] and is_unlocked(o["id"]):
 			unlocked.append(o["name"])
 	save_game()
-	return {"rank": rank, "new_best": new_best, "unlocked": unlocked}
+	return {"rank": rank, "new_best": new_best, "unlocked": unlocked, "entry": entry if rank >= 0 else {}}
+
+## Stores initials on a high-score entry (and remembers them for next time).
+func set_initials(entry: Dictionary, initials: String) -> void:
+	initials = initials.strip_edges().to_upper().substr(0, 3)
+	if initials == "":
+		initials = "???"
+	entry["initials"] = initials
+	last_initials = initials
+	save_game()
 
 func vibrate(ms: int) -> void:
 	if settings.get("haptics", true) and (OS.has_feature("android") or OS.has_feature("ios") or OS.has_feature("web_android")):

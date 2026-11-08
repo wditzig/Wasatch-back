@@ -173,6 +173,10 @@ func _layout() -> void:
 	combo_bar.position = combo_bar_bg.position
 
 func _process(delta: float) -> void:
+	if _entering and _slot < _slot_letters.size():
+		_blink += delta
+		for i in _slot_letters.size():
+			_slot_letters[i].modulate.a = (0.45 + 0.55 * absf(cos(_blink * 4.0))) if i == _slot else 1.0
 	_layout()
 	ticker_l.position.x -= 48.0 * delta
 	if ticker_l.position.x < -ticker_l.size.x:
@@ -288,10 +292,158 @@ func _build_over() -> void:
 	over_ov = UI.overlay(root, 320)
 	over_ov["root"].visible = false
 
+const CHARSET := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-!"
+var _entering := false
+var _initials: Array = ["A", "A", "A"]
+var _slot := 0
+var _slot_boxes: Array = []
+var _slot_letters: Array = []
+var _blink := 0.0
+var _initials_done: Callable
+
+func is_entering_initials() -> bool:
+	return _entering
+
 func show_game_over(title: String, cause: String, score: int, meters: float, tokens: int, rec: Dictionary, best: int, share_data: Dictionary = {}) -> void:
+	var results := func(): _show_results(title, cause, score, meters, tokens, rec, best, share_data)
+	if int(rec.get("rank", -1)) >= 0 and not rec.get("entry", {}).is_empty():
+		_show_initials(rec, score, results)
+	else:
+		results.call()
+
+func _clear_over() -> VBoxContainer:
 	var vb: VBoxContainer = over_ov["box"]
 	for c in vb.get_children():
+		vb.remove_child(c)
 		c.queue_free()
+	return vb
+
+func _pop_panel() -> void:
+	over_ov["root"].visible = true
+	over_ov["panel"].scale = Vector2(0.8, 0.8)
+	over_ov["panel"].pivot_offset = over_ov["panel"].size * 0.5
+	var tw := create_tween()
+	tw.tween_property(over_ov["panel"], "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+# ---------------------------------------------------------------- initials
+func _show_initials(rec: Dictionary, score: int, done: Callable) -> void:
+	_entering = true
+	_initials_done = func():
+		_entering = false
+		Game.set_initials(rec["entry"], "".join(_initials))
+		Sfx.play("combo")
+		done.call()
+	var start: String = Game.last_initials.to_upper()
+	for i in 3:
+		var c := start[i] if i < start.length() else "A"
+		_initials[i] = c if CHARSET.contains(c) else "A"
+	_slot = 0
+	var vb := _clear_over()
+	vb.add_child(UI.pixel_text("TOP 10!", 4.0, UI.GOLD))
+	vb.add_child(UI.label("HIGH SCORE #%d   -   %s" % [int(rec["rank"]) + 1, _fmt(score)], 15, Color.WHITE))
+	vb.add_child(UI.label("ENTER YOUR INITIALS", 13, UI.ICE))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	vb.add_child(row)
+	_slot_boxes = []
+	_slot_letters = []
+	for i in 3:
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 4)
+		var up := _arrow_button("arrow_up", func(): _spin(i, 1))
+		var down := _arrow_button("arrow_down", func(): _spin(i, -1))
+		var box := PanelContainer.new()
+		box.custom_minimum_size = Vector2(76, 84)
+		box.mouse_filter = Control.MOUSE_FILTER_STOP
+		box.gui_input.connect(func(ev):
+			if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
+				_slot = i
+				_refresh_slots())
+		var letter := TextureRect.new()
+		letter.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		letter.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		letter.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		letter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(letter)
+		col.add_child(up)
+		col.add_child(box)
+		col.add_child(down)
+		row.add_child(col)
+		_slot_boxes.append(box)
+		_slot_letters.append(letter)
+	var hint := "Tap the arrows" if OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios") else "Type, or use the arrow keys"
+	vb.add_child(UI.label(hint, 11, UI.ICE))
+	var ok := UI.button("SAVE", func(): _initials_done.call(), 56)
+	ok.add_theme_font_size_override("font_size", 22)
+	vb.add_child(ok)
+	_refresh_slots()
+	_pop_panel()
+
+func _arrow_button(icon_id: String, cb: Callable) -> Button:
+	var b := Button.new()
+	b.icon = Art.tex(icon_id)
+	b.expand_icon = true
+	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.add_theme_constant_override("icon_max_width", 26)
+	b.custom_minimum_size = Vector2(76, 44)
+	b.focus_mode = Control.FOCUS_NONE
+	b.pressed.connect(cb)
+	return b
+
+func _spin(i: int, dir: int) -> void:
+	_slot = i
+	var idx := CHARSET.find(_initials[i])
+	_initials[i] = CHARSET[(idx + dir + CHARSET.length()) % CHARSET.length()]
+	Sfx.play("click", 0.0, -6.0)
+	_refresh_slots()
+
+func _refresh_slots() -> void:
+	for i in _slot_boxes.size():
+		var sb := StyleBoxFlat.new()
+		var sel: bool = i == _slot
+		sb.bg_color = UI.NAVY2 if not sel else UI.NAVY3
+		sb.border_color = UI.GOLD if sel else UI.SNOW
+		sb.set_border_width_all(4 if sel else 2)
+		sb.set_content_margin_all(6)
+		_slot_boxes[i].add_theme_stylebox_override("panel", sb)
+		_slot_letters[i].texture = Art.text_tex(_initials[i], UI.GOLD if sel else Color.WHITE)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _entering or not (event is InputEventKey) or not event.pressed:
+		return
+	var k := event as InputEventKey
+	var handled := true
+	match k.keycode:
+		KEY_LEFT:
+			_slot = maxi(0, _slot - 1)
+		KEY_RIGHT, KEY_TAB:
+			_slot = mini(2, _slot + 1)
+		KEY_UP:
+			_spin(_slot, 1)
+		KEY_DOWN:
+			_spin(_slot, -1)
+		KEY_BACKSPACE:
+			_slot = maxi(0, _slot - 1)
+		KEY_ENTER, KEY_KP_ENTER:
+			_initials_done.call()
+			get_viewport().set_input_as_handled()
+			return
+		_:
+			var ch := String.chr(k.unicode).to_upper() if k.unicode > 0 else ""
+			if ch != "" and CHARSET.contains(ch):
+				_initials[_slot] = ch
+				Sfx.play("click", 0.0, -6.0)
+				_slot = mini(2, _slot + 1)
+			else:
+				handled = false
+	if handled:
+		_refresh_slots()
+		get_viewport().set_input_as_handled()
+
+# ---------------------------------------------------------------- results
+func _show_results(title: String, cause: String, score: int, meters: float, tokens: int, rec: Dictionary, best: int, share_data: Dictionary) -> void:
+	var vb := _clear_over()
 	var col := UI.RED if title == "ACQUIRED!" else UI.ORANGE
 	vb.add_child(UI.pixel_text(title, 3.0 if title.length() <= 10 else 2.0, col))
 	vb.add_child(UI.label(cause, 13, UI.ICE))
@@ -308,7 +460,8 @@ func show_game_over(title: String, cause: String, score: int, meters: float, tok
 		tw.tween_property(nb, "modulate:a", 0.4, 0.4)
 		tw.tween_property(nb, "modulate:a", 1.0, 0.4)
 	elif int(rec.get("rank", -1)) >= 0:
-		vb.add_child(UI.label("HIGH SCORE #%d" % (int(rec["rank"]) + 1), 15, UI.GOLD))
+		var e: Dictionary = rec.get("entry", {})
+		vb.add_child(UI.label("HIGH SCORE #%d  -  %s" % [int(rec["rank"]) + 1, String(e.get("initials", ""))], 15, UI.GOLD))
 	for u in rec.get("unlocked", []):
 		vb.add_child(UI.label("UNLOCKED: %s" % u, 14, UI.GREEN))
 	var again := UI.button("RIDE AGAIN", func(): restart_requested.emit(), 58)
@@ -324,9 +477,5 @@ func show_game_over(title: String, cause: String, score: int, meters: float, tok
 		row.add_child(b)
 	vb.add_child(row)
 	vb.add_child(status)
-	over_ov["root"].visible = true
-	over_ov["panel"].scale = Vector2(0.8, 0.8)
-	over_ov["panel"].pivot_offset = Vector2(160, 200)
-	var tw2 := create_tween()
-	tw2.tween_property(over_ov["panel"], "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_pop_panel()
 	again.call_deferred("grab_focus")

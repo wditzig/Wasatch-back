@@ -42,21 +42,27 @@ func _build_main() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right"]:
-		margin.add_theme_constant_override("margin_" + side, 28)
-	margin.add_theme_constant_override("margin_top", 54)
+		margin.add_theme_constant_override("margin_" + side, 24)
+	margin.add_theme_constant_override("margin_top", 28)
 	margin.add_theme_constant_override("margin_bottom", 16)
 	add_child(margin)
 	main_box = VBoxContainer.new()
 	main_box.add_theme_constant_override("separation", 10)
 	margin.add_child(main_box)
-	var title := UI.pixel_text("WASATCH", 4.0, Color.WHITE)
-	main_box.add_child(title)
-	var title2 := UI.pixel_text("BACK", 6.0, Color8(255, 138, 36))
-	main_box.add_child(title2)
+	# Big logo: WASATCH spans the width, BACK hits harder underneath.
+	var logo := VBoxContainer.new()
+	logo.add_theme_constant_override("separation", -6)
+	logo.add_child(UI.pixel_text("WASATCH", 6.8, Color.WHITE))
+	logo.add_child(UI.pixel_text("BACK", 10.0, Color8(255, 138, 36)))
+	main_box.add_child(logo)
+	var tw := logo.create_tween().set_loops()
+	logo.pivot_offset = Vector2(156, 100)
+	tw.tween_property(logo, "scale", Vector2(1.025, 1.025), 1.4).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(logo, "scale", Vector2.ONE, 1.4).set_trans(Tween.TRANS_SINE)
 	var tag := UI.label("TAKE BACK THE MOUNTAIN.", 15, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, 4)
 	main_box.add_child(tag)
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 14)
+	spacer.custom_minimum_size = Vector2(0, 4)
 	main_box.add_child(spacer)
 	var play := UI.button("RIDE!", _play, 60)
 	play.add_theme_font_size_override("font_size", 26)
@@ -248,11 +254,23 @@ func _build_scores() -> Dictionary:
 	vb.add_child(UI.pixel_text("HIGH SCORES", 2.0))
 	if Game.high_scores.is_empty():
 		vb.add_child(UI.label("No runs yet.\nThe mountain is waiting.", 14, UI.ICE))
+	var grid := GridContainer.new()
+	grid.columns = 5
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 2)
 	for i in Game.high_scores.size():
 		var e: Dictionary = Game.high_scores[i]
 		var rider_tag := "SKI" if e.get("rider", "skier") == "skier" else "BRD"
 		var col := UI.GOLD if i == 0 else Color.WHITE
-		vb.add_child(UI.label("%2d. %8d  %5dm  %s" % [i + 1, int(e["score"]), int(e["distance"]), rider_tag], 14, col, HORIZONTAL_ALIGNMENT_LEFT))
+		var cells := ["%d." % (i + 1), String(e.get("initials", "---")), _fmt(int(e["score"])), "%dm" % int(e["distance"]), rider_tag]
+		var aligns := [HORIZONTAL_ALIGNMENT_RIGHT, HORIZONTAL_ALIGNMENT_LEFT, HORIZONTAL_ALIGNMENT_RIGHT, HORIZONTAL_ALIGNMENT_RIGHT, HORIZONTAL_ALIGNMENT_LEFT]
+		for k in cells.size():
+			var l := UI.label(cells[k], 15 if k == 1 else 14, col, aligns[k])
+			l.autowrap_mode = TextServer.AUTOWRAP_OFF
+			if k == 2:
+				l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			grid.add_child(l)
+	vb.add_child(grid)
 	vb.add_child(HSeparator.new())
 	vb.add_child(UI.label("Runs: %d   Passes collected: %d\nBest distance: %d m" % [Game.runs, Game.total_tokens, int(Game.best_distance)], 12, UI.ICE))
 	if not Game.high_scores.is_empty():
@@ -265,6 +283,14 @@ func _build_scores() -> Dictionary:
 		vb.add_child(status)
 	vb.add_child(UI.button("BACK", _close, 44))
 	return ov
+
+func _fmt(n: int) -> String:
+	var s := str(n)
+	var out := ""
+	while s.length() > 3:
+		out = "," + s.substr(s.length() - 3) + out
+		s = s.substr(0, s.length() - 3)
+	return s + out
 
 # ---------------------------------------------------------------- settings
 func _build_settings() -> Dictionary:

@@ -267,6 +267,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_paused(not get_tree().paused)
 		return
 	if state == State.OVER:
+		if hud.is_entering_initials():
+			return
 		if event.is_action_pressed("restart") or event.is_action_pressed("jump") or event.is_action_pressed("ui_accept"):
 			_restart()
 		return
