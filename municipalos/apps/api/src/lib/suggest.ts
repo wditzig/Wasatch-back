@@ -15,13 +15,18 @@ export interface CategorySuggestion {
   matched: string[];
 }
 
-export function suggestCategories(description: string, categories: CategoryForSuggestion[]): CategorySuggestion[] {
+export function suggestCategories(
+  description: string,
+  categories: CategoryForSuggestion[],
+): CategorySuggestion[] {
   const text = ` ${description.toLowerCase().replace(/[^a-z0-9]+/g, " ")} `;
   return categories
     .map((c) => ({
       categoryId: c.id,
       name: c.name,
-      matched: c.keywords.filter((k) => text.includes(` ${k.toLowerCase()} `) || text.includes(` ${k.toLowerCase()}s `)),
+      matched: c.keywords.filter(
+        (k) => text.includes(` ${k.toLowerCase()} `) || text.includes(` ${k.toLowerCase()}s `),
+      ),
     }))
     .filter((s) => s.matched.length > 0)
     .sort((a, b) => b.matched.length - a.matched.length)
@@ -29,10 +34,32 @@ export function suggestCategories(description: string, categories: CategoryForSu
 }
 
 const EMERGENCY_TERMS = [
-  "fire", "smoke", "gas leak", "smell gas", "explosion", "injured", "injury", "bleeding",
-  "unconscious", "not breathing", "heart attack", "overdose", "gun", "shooting", "weapon",
-  "assault", "robbery", "break in", "crash", "accident", "downed power line", "power line down",
-  "live wire", "drowning", "carbon monoxide", "emergency",
+  "fire",
+  "smoke",
+  "gas leak",
+  "smell gas",
+  "explosion",
+  "injured",
+  "injury",
+  "bleeding",
+  "unconscious",
+  "not breathing",
+  "heart attack",
+  "overdose",
+  "gun",
+  "shooting",
+  "weapon",
+  "assault",
+  "robbery",
+  "break in",
+  "crash",
+  "accident",
+  "downed power line",
+  "power line down",
+  "live wire",
+  "drowning",
+  "carbon monoxide",
+  "emergency",
 ];
 
 /**

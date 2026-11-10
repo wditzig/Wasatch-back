@@ -1,6 +1,16 @@
 import { hashSessionToken } from "@municipalos/auth";
 import {
-  and, eq, gt, isNull, municipalities, rolePermissions, roles, sessions, staffMemberships, users, withTenant,
+  and,
+  eq,
+  gt,
+  isNull,
+  municipalities,
+  rolePermissions,
+  roles,
+  sessions,
+  staffMemberships,
+  users,
+  withTenant,
 } from "@municipalos/database";
 import { toPermissionSet, type Permission } from "@municipalos/permissions";
 import type { Context } from "hono";
@@ -41,7 +51,10 @@ export function requireSession(deps: AppDeps) {
       );
     if (!row) throw unauthorized();
     if (Date.now() - row.lastSeenAt.getTime() > 5 * 60_000) {
-      await deps.db.update(sessions).set({ lastSeenAt: new Date() }).where(eq(sessions.id, row.sessionId));
+      await deps.db
+        .update(sessions)
+        .set({ lastSeenAt: new Date() })
+        .where(eq(sessions.id, row.sessionId));
     }
     c.set("auth", {
       sessionId: row.sessionId,
@@ -51,13 +64,17 @@ export function requireSession(deps: AppDeps) {
   });
 }
 
-export async function findActiveMunicipality(deps: AppDeps, slug: string): Promise<Municipality | undefined> {
+export async function findActiveMunicipality(
+  deps: AppDeps,
+  slug: string,
+): Promise<Municipality | undefined> {
   const [row] = await deps.db
     .select({
       id: municipalities.id,
       slug: municipalities.slug,
       name: municipalities.name,
       state: municipalities.state,
+      timezone: municipalities.timezone,
       referencePrefix: municipalities.referencePrefix,
     })
     .from(municipalities)
@@ -76,37 +93,41 @@ export function requireStaff(deps: AppDeps) {
     const municipality = await findActiveMunicipality(deps, c.req.param("slug") ?? "");
     if (!municipality) throw notFound("Municipality");
 
-    const staff = await withTenant(deps.db, { municipalityId: municipality.id, userId: user.id }, async (tx) => {
-      const [membership] = await tx
-        .select({
-          id: staffMemberships.id,
-          departmentId: staffMemberships.departmentId,
-          title: staffMemberships.title,
-          roleId: roles.id,
-          roleKey: roles.key,
-          roleName: roles.name,
-        })
-        .from(staffMemberships)
-        .innerJoin(roles, eq(roles.id, staffMemberships.roleId))
-        .where(and(eq(staffMemberships.userId, user.id), eq(staffMemberships.status, "active")));
-      if (!membership) {
-        await recordAudit(tx, {
-          municipalityId: municipality.id,
-          actorKind: "staff",
-          actorUserId: user.id,
-          action: "authz.tenant_access_denied",
-          metadata: { path: c.req.path, method: c.req.method },
-          ip: c.get("ip"),
-          requestId: c.get("requestId"),
-        });
-        return null;
-      }
-      const perms = await tx
-        .select({ permission: rolePermissions.permission })
-        .from(rolePermissions)
-        .where(eq(rolePermissions.roleId, membership.roleId));
-      return { membership, permissions: toPermissionSet(perms.map((p) => p.permission)) };
-    });
+    const staff = await withTenant(
+      deps.db,
+      { municipalityId: municipality.id, userId: user.id },
+      async (tx) => {
+        const [membership] = await tx
+          .select({
+            id: staffMemberships.id,
+            departmentId: staffMemberships.departmentId,
+            title: staffMemberships.title,
+            roleId: roles.id,
+            roleKey: roles.key,
+            roleName: roles.name,
+          })
+          .from(staffMemberships)
+          .innerJoin(roles, eq(roles.id, staffMemberships.roleId))
+          .where(and(eq(staffMemberships.userId, user.id), eq(staffMemberships.status, "active")));
+        if (!membership) {
+          await recordAudit(tx, {
+            municipalityId: municipality.id,
+            actorKind: "staff",
+            actorUserId: user.id,
+            action: "authz.tenant_access_denied",
+            metadata: { path: c.req.path, method: c.req.method },
+            ip: c.get("ip"),
+            requestId: c.get("requestId"),
+          });
+          return null;
+        }
+        const perms = await tx
+          .select({ permission: rolePermissions.permission })
+          .from(rolePermissions)
+          .where(eq(rolePermissions.roleId, membership.roleId));
+        return { membership, permissions: toPermissionSet(perms.map((p) => p.permission)) };
+      },
+    );
     if (!staff) throw forbidden("You are not a staff member of this municipality.");
 
     c.set("staff", {

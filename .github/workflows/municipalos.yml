@@ -1,0 +1,73 @@
+name: MunicipalOS CI
+
+on:
+  pull_request:
+    paths: ["municipalos/**", ".github/workflows/municipalos.yml"]
+  push:
+    branches: [main]
+    paths: ["municipalos/**", ".github/workflows/municipalos.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: municipalos-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: municipalos
+
+env:
+  DATABASE_URL: postgres://municipalos_app:dev_app_password@localhost:5432/municipalos_dev
+  DATABASE_MIGRATION_URL: postgres://municipalos_owner:dev_owner_password@localhost:5432/municipalos_dev
+  TEST_DATABASE_URL: postgres://municipalos_app:dev_app_password@localhost:5432/municipalos_test
+  TEST_DATABASE_MIGRATION_URL: postgres://municipalos_owner:dev_owner_password@localhost:5432/municipalos_test
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: municipalos/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: municipalos/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Dependency audit (high and critical)
+        run: pnpm audit --audit-level high --prod
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - name: Create database roles and databases
+        run: bash scripts/db-setup.sh
+        env:
+          PGSUPER: psql -h localhost -U postgres
+          PGPASSWORD: postgres
+      - name: Unit, integration and security tests
+        run: pnpm test
+      - run: pnpm build
+      - name: Seed development database for end-to-end tests
+        run: pnpm db:reset
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: End-to-end and accessibility tests
+        run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: municipalos/playwright-report
+          retention-days: 7

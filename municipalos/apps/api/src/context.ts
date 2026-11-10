@@ -20,6 +20,15 @@ export const DEFAULT_RATE_LIMITS: AppConfig["rateLimits"] = {
   publicRead: { limit: 300, windowMs: 60_000 },
 };
 
+export function scaleRateLimits(
+  limits: AppConfig["rateLimits"],
+  scale: number,
+): AppConfig["rateLimits"] {
+  return Object.fromEntries(
+    Object.entries(limits).map(([k, rule]) => [k, { ...rule, limit: rule.limit * scale }]),
+  ) as AppConfig["rateLimits"];
+}
+
 export interface AppDeps {
   db: Db;
   email: EmailTransport;
@@ -36,6 +45,7 @@ export interface Municipality {
   slug: string;
   name: string;
   state: string;
+  timezone: string;
   referencePrefix: string;
 }
 

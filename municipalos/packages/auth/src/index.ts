@@ -15,10 +15,20 @@ const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 const KEY_LENGTH = 64;
 
-function scryptAsync(password: string, salt: Buffer, n: number, r: number, p: number): Promise<Buffer> {
+function scryptAsync(
+  password: string,
+  salt: Buffer,
+  n: number,
+  r: number,
+  p: number,
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    scrypt(password.normalize("NFKC"), salt, KEY_LENGTH, { N: n, r, p, maxmem: 128 * n * r * 2 }, (err, key) =>
-      err ? reject(err) : resolve(key),
+    scrypt(
+      password.normalize("NFKC"),
+      salt,
+      KEY_LENGTH,
+      { N: n, r, p, maxmem: 128 * n * r * 2 },
+      (err, key) => (err ? reject(err) : resolve(key)),
     );
   });
 }
@@ -26,15 +36,31 @@ function scryptAsync(password: string, salt: Buffer, n: number, r: number, p: nu
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
   const key = await scryptAsync(password, salt, SCRYPT_N, SCRYPT_R, SCRYPT_P);
-  return ["scrypt", SCRYPT_N, SCRYPT_R, SCRYPT_P, salt.toString("base64url"), key.toString("base64url")].join("$");
+  return [
+    "scrypt",
+    SCRYPT_N,
+    SCRYPT_R,
+    SCRYPT_P,
+    salt.toString("base64url"),
+    key.toString("base64url"),
+  ].join("$");
 }
 
-export async function verifyPassword(password: string, stored: string | null | undefined): Promise<boolean> {
+export async function verifyPassword(
+  password: string,
+  stored: string | null | undefined,
+): Promise<boolean> {
   if (!stored) return false;
   const [scheme, n, r, p, salt, hash] = stored.split("$");
   if (scheme !== "scrypt" || !n || !r || !p || !salt || !hash) return false;
   const expected = Buffer.from(hash, "base64url");
-  const actual = await scryptAsync(password, Buffer.from(salt, "base64url"), Number(n), Number(r), Number(p));
+  const actual = await scryptAsync(
+    password,
+    Buffer.from(salt, "base64url"),
+    Number(n),
+    Number(r),
+    Number(p),
+  );
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 

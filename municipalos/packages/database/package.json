@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts", "./seed": "./src/seed.ts", "./migrate": "./src/migrate.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./seed": "./src/seed.ts",
+    "./migrate": "./src/migrate.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "generate": "drizzle-kit generate",

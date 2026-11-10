@@ -15,6 +15,13 @@
       "when": 1794290477182,
       "tag": "0001_row_level_security",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794291984306,
+      "tag": "0002_event_sequence",
+      "breakpoints": true
     }
   ]
 }

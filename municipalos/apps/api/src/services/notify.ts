@@ -1,4 +1,12 @@
-import { and, eq, inArray, notifications, staffMemberships, withTenant, type Tx } from "@municipalos/database";
+import {
+  and,
+  eq,
+  inArray,
+  notifications,
+  staffMemberships,
+  withTenant,
+  type Tx,
+} from "@municipalos/database";
 import { residentUpdateEmail } from "@municipalos/notifications";
 import type { AppDeps, Municipality } from "../context";
 
@@ -65,7 +73,9 @@ export async function departmentStaffUserIds(tx: Tx, departmentId: string): Prom
   const rows = await tx
     .select({ userId: staffMemberships.userId })
     .from(staffMemberships)
-    .where(and(eq(staffMemberships.departmentId, departmentId), eq(staffMemberships.status, "active")));
+    .where(
+      and(eq(staffMemberships.departmentId, departmentId), eq(staffMemberships.status, "active")),
+    );
   return rows.map((r) => r.userId);
 }
 
@@ -73,10 +83,17 @@ export async function departmentStaffUserIds(tx: Tx, departmentId: string): Prom
  * Sends queued emails after the transaction that created them has committed. Delivery failures
  * are recorded on the notification and logged; they never fail the originating request.
  */
-export async function deliverQueuedEmails(deps: AppDeps, municipalityId: string, ids: string[]): Promise<void> {
+export async function deliverQueuedEmails(
+  deps: AppDeps,
+  municipalityId: string,
+  ids: string[],
+): Promise<void> {
   if (ids.length === 0) return;
   const queued = await withTenant(deps.db, { municipalityId }, (tx) =>
-    tx.select().from(notifications).where(and(inArray(notifications.id, ids), eq(notifications.status, "queued"))),
+    tx
+      .select()
+      .from(notifications)
+      .where(and(inArray(notifications.id, ids), eq(notifications.status, "queued"))),
   );
   for (const n of queued) {
     let status: "sent" | "failed" = "sent";

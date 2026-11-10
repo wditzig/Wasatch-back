@@ -9,7 +9,11 @@ import { DEFAULT_RATE_LIMITS } from "./context";
 const app = createApp({
   db: {} as Db,
   email: new MemoryEmailTransport(),
-  config: { sessionTtlHours: 12, publicSiteUrl: "http://localhost:3000", rateLimits: DEFAULT_RATE_LIMITS },
+  config: {
+    sessionTtlHours: 12,
+    publicSiteUrl: "http://localhost:3000",
+    rateLimits: DEFAULT_RATE_LIMITS,
+  },
 });
 const res = await app.request("/openapi.json");
 const out = fileURLToPath(new URL("../../../docs/openapi.json", import.meta.url));

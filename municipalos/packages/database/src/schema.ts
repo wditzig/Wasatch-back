@@ -14,6 +14,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   customType,
@@ -54,7 +55,10 @@ export const municipalities = pgTable(
     timezone: text("timezone").notNull().default("America/Denver"),
     /** Prefix for resident-facing tracking numbers, e.g. "CR". */
     referencePrefix: text("reference_prefix").notNull(),
-    status: text("status").$type<"onboarding" | "active" | "suspended">().notNull().default("onboarding"),
+    status: text("status")
+      .$type<"onboarding" | "active" | "suspended">()
+      .notNull()
+      .default("onboarding"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -253,7 +257,10 @@ export const serviceRequestCategories = pgTable(
     name: text("name").notNull(),
     description: text("description").notNull().default(""),
     /** Lowercase keywords used by the rules-based category suggester. */
-    keywords: text("keywords").array().notNull().default(sql`'{}'::text[]`),
+    keywords: text("keywords")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     isActive: boolean("is_active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: createdAt(),
@@ -288,7 +295,9 @@ export const serviceRequests = pgTable(
     reporterName: text("reporter_name"),
     reporterEmail: text("reporter_email"),
     reporterPhone: text("reporter_phone"),
-    assignedToUserId: uuid("assigned_to_user_id").references(() => users.id, { onDelete: "restrict" }),
+    assignedToUserId: uuid("assigned_to_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
     /** Client-supplied key making resident submission safe to retry. */
     idempotencyKey: text("idempotency_key"),
     createdAt: createdAt(),
@@ -339,6 +348,8 @@ export const serviceRequestEvents = pgTable(
   "service_request_events",
   {
     id: id(),
+    /** Monotonic insertion order. Events in one transaction share a timestamp, so order by this. */
+    seq: bigint("seq", { mode: "number" }).generatedAlwaysAsIdentity().notNull(),
     municipalityId: tenantId(),
     requestId: uuid("request_id").notNull(),
     type: text("type").$type<ServiceRequestEventType>().notNull(),
@@ -354,14 +365,17 @@ export const serviceRequestEvents = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
-    index("service_request_events_request_idx").on(t.requestId, t.createdAt),
+    index("service_request_events_request_idx").on(t.requestId, t.seq),
     foreignKey({
       name: "service_request_events_request_fk",
       columns: [t.municipalityId, t.requestId],
       foreignColumns: [serviceRequests.municipalityId, serviceRequests.id],
     }),
     check("service_request_events_visibility_check", sql`${t.visibility} in ('public','internal')`),
-    check("service_request_events_actor_check", sql`${t.actorKind} in ('resident','staff','system')`),
+    check(
+      "service_request_events_actor_check",
+      sql`${t.actorKind} in ('resident','staff','system')`,
+    ),
   ],
 );
 
@@ -401,7 +415,9 @@ export const auditEvents = pgTable(
   "audit_events",
   {
     id: id(),
-    municipalityId: uuid("municipality_id").references(() => municipalities.id, { onDelete: "restrict" }),
+    municipalityId: uuid("municipality_id").references(() => municipalities.id, {
+      onDelete: "restrict",
+    }),
     actorKind: text("actor_kind").$type<"resident" | "staff" | "system" | "anonymous">().notNull(),
     actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "restrict" }),
     action: text("action").notNull(),

@@ -5,7 +5,8 @@ import { createApp } from "../src/app";
 import { DEFAULT_RATE_LIMITS, type AppConfig } from "../src/context";
 
 const APP_URL =
-  process.env.TEST_DATABASE_URL ?? "postgres://municipalos_app:dev_app_password@localhost:5432/municipalos_test";
+  process.env.TEST_DATABASE_URL ??
+  "postgres://municipalos_app:dev_app_password@localhost:5432/municipalos_test";
 
 const GENEROUS: AppConfig["rateLimits"] = {
   login: { limit: 10_000, windowMs: 60_000 },
@@ -22,6 +23,8 @@ export interface TestApp {
   close(): Promise<void>;
 }
 
+// Test responses are inspected ad hoc; typing every shape would add noise without safety.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ApiResponse<T = any> {
   status: number;
   body: T;
@@ -35,7 +38,9 @@ export type Api = (
 ) => Promise<ApiResponse>;
 
 /** Builds the real app against the real test database, connected as the restricted runtime role. */
-export async function createTestApp(rateLimits: Partial<AppConfig["rateLimits"]> = {}): Promise<TestApp> {
+export async function createTestApp(
+  rateLimits: Partial<AppConfig["rateLimits"]> = {},
+): Promise<TestApp> {
   const handle = createDb(APP_URL, { max: 5 });
   await assertRuntimeRoleIsRestricted(handle.db);
   const email = new MemoryEmailTransport();
@@ -71,7 +76,8 @@ export async function createTestApp(rateLimits: Partial<AppConfig["rateLimits"]>
       const cached = tokens.get(address);
       if (cached) return cached;
       const res = await api("POST", "/v1/auth/login", { json: { email: address, password } });
-      if (res.status !== 200) throw new Error(`login failed for ${address}: ${JSON.stringify(res.body)}`);
+      if (res.status !== 200)
+        throw new Error(`login failed for ${address}: ${JSON.stringify(res.body)}`);
       tokens.set(address, res.body.token);
       return res.body.token as string;
     },
@@ -120,6 +126,14 @@ export async function submitRequest(
   });
   if (res.status !== 201) throw new Error(`submit failed: ${JSON.stringify(res.body)}`);
   const token = await t.login(opts.lookupAs ?? USERS.crAdmin);
-  const list = await t.api("GET", `${opts.staffBase ?? CR}/service-requests?status=all&q=${res.body.reference}`, { token });
-  return { reference: res.body.reference as string, id: list.body.items[0].id as string, created: res.body };
+  const list = await t.api(
+    "GET",
+    `${opts.staffBase ?? CR}/service-requests?status=all&q=${res.body.reference}`,
+    { token },
+  );
+  return {
+    reference: res.body.reference as string,
+    id: list.body.items[0].id as string,
+    created: res.body,
+  };
 }

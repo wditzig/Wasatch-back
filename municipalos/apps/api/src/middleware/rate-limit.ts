@@ -9,7 +9,11 @@ import { AppError } from "../errors";
 export class RateLimiter {
   private readonly hits = new Map<string, { count: number; resetAt: number }>();
 
-  check(key: string, rule: RateLimitRule, now = Date.now()): { allowed: boolean; retryAfterSeconds: number } {
+  check(
+    key: string,
+    rule: RateLimitRule,
+    now = Date.now(),
+  ): { allowed: boolean; retryAfterSeconds: number } {
     const entry = this.hits.get(key);
     if (!entry || entry.resetAt <= now) {
       if (this.hits.size > 50_000) this.prune(now);
@@ -17,7 +21,10 @@ export class RateLimiter {
       return { allowed: true, retryAfterSeconds: 0 };
     }
     entry.count += 1;
-    return { allowed: entry.count <= rule.limit, retryAfterSeconds: Math.ceil((entry.resetAt - now) / 1000) };
+    return {
+      allowed: entry.count <= rule.limit,
+      retryAfterSeconds: Math.ceil((entry.resetAt - now) / 1000),
+    };
   }
 
   private prune(now: number) {
@@ -28,9 +35,14 @@ export class RateLimiter {
 export function enforceRateLimit(limiter: RateLimiter, key: string, rule: RateLimitRule): void {
   const result = limiter.check(key, rule);
   if (!result.allowed) {
-    throw new AppError(429, "rate_limited", "Too many requests. Please wait a moment and try again.", {
-      retryAfterSeconds: result.retryAfterSeconds,
-    });
+    throw new AppError(
+      429,
+      "rate_limited",
+      "Too many requests. Please wait a moment and try again.",
+      {
+        retryAfterSeconds: result.retryAfterSeconds,
+      },
+    );
   }
 }
 

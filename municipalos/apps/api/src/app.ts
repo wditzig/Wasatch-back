@@ -48,27 +48,49 @@ export function createApp(deps: AppDeps) {
   });
 
   app.notFound((c) =>
-    c.json({ error: { code: "not_found", message: "Not found." }, requestId: c.get("requestId") }, 404),
+    c.json(
+      { error: { code: "not_found", message: "Not found." }, requestId: c.get("requestId") },
+      404,
+    ),
   );
 
   app.onError((err, c) => {
     const requestId = c.get("requestId");
     if (err instanceof AppError) {
       if (err.status === 429) {
-        const retry = (err.details as { retryAfterSeconds?: number } | undefined)?.retryAfterSeconds;
+        const retry = (err.details as { retryAfterSeconds?: number } | undefined)
+          ?.retryAfterSeconds;
         if (retry) c.header("Retry-After", String(retry));
       }
-      return c.json({ error: { code: err.code, message: err.message, details: err.details }, requestId }, err.status);
+      return c.json(
+        { error: { code: err.code, message: err.message, details: err.details }, requestId },
+        err.status,
+      );
     }
     if (err instanceof SyntaxError || (err as { status?: number }).status === 400) {
-      return c.json({ error: { code: "bad_request", message: "The request could not be read." }, requestId }, 400);
+      return c.json(
+        { error: { code: "bad_request", message: "The request could not be read." }, requestId },
+        400,
+      );
     }
     if ((err as { status?: number }).status === 413) {
-      return c.json({ error: { code: "payload_too_large", message: "The request is too large." }, requestId }, 413);
+      return c.json(
+        { error: { code: "payload_too_large", message: "The request is too large." }, requestId },
+        413,
+      );
     }
     // Unexpected: log with the request id, return nothing internal to the client.
-    console.error(`[api] unhandled error requestId=${requestId} ${c.req.method} ${c.req.path}`, err);
-    return c.json({ error: { code: "internal_error", message: "Something went wrong on our side." }, requestId }, 500);
+    console.error(
+      `[api] unhandled error requestId=${requestId} ${c.req.method} ${c.req.path}`,
+      err,
+    );
+    return c.json(
+      {
+        error: { code: "internal_error", message: "Something went wrong on our side." },
+        requestId,
+      },
+      500,
+    );
   });
 
   return app;

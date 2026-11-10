@@ -15,7 +15,10 @@ export const serviceRequestStatusSchema = z.enum(SERVICE_REQUEST_STATUSES);
 const trimmed = (max: number) => z.string().trim().max(max);
 /** Empty strings from HTML forms are treated as "not provided". */
 const optionalText = (max: number) =>
-  z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), trimmed(max).optional());
+  z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    trimmed(max).optional(),
+  );
 
 export const createServiceRequestSchema = z
   .object({

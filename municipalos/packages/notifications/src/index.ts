@@ -21,7 +21,9 @@ export interface EmailTransport {
 export class ConsoleEmailTransport implements EmailTransport {
   readonly name = "console";
   async send(message: EmailMessage): Promise<void> {
-    console.info(`[email:console] to=${redactEmail(message.to)} subject=${JSON.stringify(message.subject)}`);
+    console.info(
+      `[email:console] to=${redactEmail(message.to)} subject=${JSON.stringify(message.subject)}`,
+    );
   }
 }
 

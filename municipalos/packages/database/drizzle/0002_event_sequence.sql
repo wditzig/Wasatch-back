@@ -1,0 +1,3 @@
+DROP INDEX "service_request_events_request_idx";--> statement-breakpoint
+ALTER TABLE "service_request_events" ADD COLUMN "seq" bigint NOT NULL GENERATED ALWAYS AS IDENTITY (sequence name "service_request_events_seq_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1);--> statement-breakpoint
+CREATE INDEX "service_request_events_request_idx" ON "service_request_events" USING btree ("request_id","seq");

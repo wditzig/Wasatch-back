@@ -34,8 +34,7 @@ export interface WorkflowDefinition<S extends string, P extends string> {
 export type TransitionDenial = "no_such_transition" | "forbidden" | "note_required";
 
 export type TransitionCheck<S extends string, P extends string> =
-  | { ok: true; transition: WorkflowTransition<S, P> }
-  | { ok: false; reason: TransitionDenial };
+  { ok: true; transition: WorkflowTransition<S, P> } | { ok: false; reason: TransitionDenial };
 
 export function findTransition<S extends string, P extends string>(
   def: WorkflowDefinition<S, P>,

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createServiceRequestSchema, listServiceRequestsQuerySchema, referenceSchema } from "./index";
+import {
+  createServiceRequestSchema,
+  listServiceRequestsQuerySchema,
+  referenceSchema,
+} from "./index";
 
 const base = {
   categoryId: "3f0e8a52-6f1b-4c62-9a55-0c6f0f3f9a11",
@@ -14,16 +18,26 @@ describe("createServiceRequestSchema", () => {
     expect(r.reporterName).toBeUndefined();
   });
   it("rejects short descriptions, bad emails and half coordinates", () => {
-    expect(createServiceRequestSchema.safeParse({ ...base, description: "hole" }).success).toBe(false);
-    expect(createServiceRequestSchema.safeParse({ ...base, reporterEmail: "nope" }).success).toBe(false);
+    expect(createServiceRequestSchema.safeParse({ ...base, description: "hole" }).success).toBe(
+      false,
+    );
+    expect(createServiceRequestSchema.safeParse({ ...base, reporterEmail: "nope" }).success).toBe(
+      false,
+    );
     expect(createServiceRequestSchema.safeParse({ ...base, latitude: 40.1 }).success).toBe(false);
-    expect(createServiceRequestSchema.safeParse({ ...base, latitude: 140, longitude: 0 }).success).toBe(false);
+    expect(
+      createServiceRequestSchema.safeParse({ ...base, latitude: 140, longitude: 0 }).success,
+    ).toBe(false);
   });
 });
 
 describe("listServiceRequestsQuerySchema", () => {
   it("applies defaults and caps page size", () => {
-    expect(listServiceRequestsQuerySchema.parse({})).toMatchObject({ status: "open", page: 1, pageSize: 25 });
+    expect(listServiceRequestsQuerySchema.parse({})).toMatchObject({
+      status: "open",
+      page: 1,
+      pageSize: 25,
+    });
     expect(listServiceRequestsQuerySchema.safeParse({ pageSize: "500" }).success).toBe(false);
   });
 });

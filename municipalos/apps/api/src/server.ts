@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import { assertRuntimeRoleIsRestricted, createDb } from "@municipalos/database";
 import { ConsoleEmailTransport } from "@municipalos/notifications";
 import { createApp } from "./app";
-import { DEFAULT_RATE_LIMITS } from "./context";
+import { DEFAULT_RATE_LIMITS, scaleRateLimits } from "./context";
 import { loadEnv } from "./env";
 
 const env = loadEnv();
@@ -12,7 +12,11 @@ await assertRuntimeRoleIsRestricted(db);
 const app = createApp({
   db,
   email: new ConsoleEmailTransport(),
-  config: { sessionTtlHours: env.SESSION_TTL_HOURS, publicSiteUrl: env.PUBLIC_SITE_URL, rateLimits: DEFAULT_RATE_LIMITS },
+  config: {
+    sessionTtlHours: env.SESSION_TTL_HOURS,
+    publicSiteUrl: env.PUBLIC_SITE_URL,
+    rateLimits: scaleRateLimits(DEFAULT_RATE_LIMITS, env.RATE_LIMIT_SCALE),
+  },
 });
 
 const server = serve({ fetch: app.fetch, port: env.API_PORT }, (info) => {

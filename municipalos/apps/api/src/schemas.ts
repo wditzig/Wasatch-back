@@ -33,27 +33,51 @@ export const slugParam = z.object({ slug: z.string().min(1).max(63) });
 export const idParam = slugParam.extend({ id: z.uuid() });
 
 const status = serviceRequestStatusSchema;
-export const paginationSchema = z.object({ page: z.number(), pageSize: z.number(), total: z.number() });
+export const paginationSchema = z.object({
+  page: z.number(),
+  pageSize: z.number(),
+  total: z.number(),
+});
 
 export const municipalitySummarySchema = z
   .object({ slug: z.string(), name: z.string(), state: z.string() })
   .openapi("MunicipalitySummary");
 
 export const categorySchema = z
-  .object({ id: z.string(), slug: z.string(), name: z.string(), description: z.string(), departmentName: z.string() })
+  .object({
+    id: z.string(),
+    slug: z.string(),
+    name: z.string(),
+    description: z.string(),
+    departmentName: z.string(),
+  })
   .openapi("ServiceCategory");
 
 export const siteSchema = z
   .object({
     municipality: municipalitySummarySchema,
+    timezone: z.string(),
     branding: z.object({ primaryColor: z.string(), tagline: z.string().optional() }),
-    contact: z.object({ address: z.string(), phone: z.string(), email: z.string(), hours: z.string() }),
+    contact: z.object({
+      address: z.string(),
+      phone: z.string(),
+      email: z.string(),
+      hours: z.string(),
+    }),
     allowAnonymousRequests: z.boolean(),
     modules: z.array(z.string()),
     departments: z.array(
-      z.object({ slug: z.string(), name: z.string(), description: z.string(), phone: z.string().nullable(), email: z.string().nullable() }),
+      z.object({
+        slug: z.string(),
+        name: z.string(),
+        description: z.string(),
+        phone: z.string().nullable(),
+        email: z.string().nullable(),
+      }),
     ),
-    announcements: z.array(z.object({ id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string() })),
+    announcements: z.array(
+      z.object({ id: z.string(), title: z.string(), body: z.string(), publishedAt: z.string() }),
+    ),
   })
   .openapi("MunicipalSite");
 
@@ -95,7 +119,9 @@ export const publicRequestSchema = z
 
 export const suggestionSchema = z
   .object({
-    suggestions: z.array(z.object({ categoryId: z.string(), name: z.string(), matched: z.array(z.string()) })),
+    suggestions: z.array(
+      z.object({ categoryId: z.string(), name: z.string(), matched: z.array(z.string()) }),
+    ),
     possibleEmergency: z.boolean(),
   })
   .openapi("CategorySuggestions");
@@ -121,7 +147,11 @@ export const requestDetailSchema = requestListItemSchema
   .extend({
     latitude: z.number().nullable(),
     longitude: z.number().nullable(),
-    reporter: z.object({ name: z.string().nullable(), email: z.string().nullable(), phone: z.string().nullable() }),
+    reporter: z.object({
+      name: z.string().nullable(),
+      email: z.string().nullable(),
+      phone: z.string().nullable(),
+    }),
     resolvedAt: z.string().nullable(),
     closedAt: z.string().nullable(),
     events: z.array(
@@ -138,9 +168,17 @@ export const requestDetailSchema = requestListItemSchema
         createdAt: z.string(),
       }),
     ),
-    availableTransitions: z.array(z.object({ to: status, label: z.string(), requiresNote: z.boolean() })),
+    availableTransitions: z.array(
+      z.object({ to: status, label: z.string(), requiresNote: z.boolean() }),
+    ),
     possibleDuplicates: z.array(
-      z.object({ id: z.string(), reference: z.string(), status, locationText: z.string(), createdAt: z.string() }),
+      z.object({
+        id: z.string(),
+        reference: z.string(),
+        status,
+        locationText: z.string(),
+        createdAt: z.string(),
+      }),
     ),
   })
   .openapi("ServiceRequestDetail");

@@ -91,7 +91,8 @@ export const SYSTEM_ROLES = [
   {
     key: "permit_reviewer",
     name: "Permit Reviewer",
-    description: "Reviews permit applications. (Permitting module not yet built; no permissions yet.)",
+    description:
+      "Reviews permit applications. (Permitting module not yet built; no permissions yet.)",
     permissions: [],
   },
   {
@@ -123,9 +124,7 @@ export function can(granted: PermissionSet, permission: Permission): boolean {
 }
 
 export type RequestVisibility =
-  | { scope: "all" }
-  | { scope: "department"; departmentId: string }
-  | { scope: "none" };
+  { scope: "all" } | { scope: "department"; departmentId: string } | { scope: "none" };
 
 /**
  * Which service requests may this member see? `read_all` wins; `read_department` only applies

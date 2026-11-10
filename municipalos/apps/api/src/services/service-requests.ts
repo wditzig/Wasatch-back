@@ -1,20 +1,58 @@
 import {
-  and, asc, count, desc, eq, gte, ilike, inArray, isNull, moduleEntitlements, municipalitySettings, ne, or,
-  rolePermissions, roles, serviceRequestCategories as categories, serviceRequestEvents as events,
-  serviceRequests as requests, departments, sql, staffMemberships, users, withTenant, type Tx,
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNull,
+  moduleEntitlements,
+  municipalitySettings,
+  ne,
+  or,
+  rolePermissions,
+  roles,
+  serviceRequestCategories as categories,
+  serviceRequestEvents as events,
+  serviceRequests as requests,
+  departments,
+  sql,
+  staffMemberships,
+  users,
+  withTenant,
+  type Tx,
 } from "@municipalos/database";
 import { alias } from "@municipalos/database";
-import { serviceRequestVisibility, toPermissionSet, type RequestVisibility } from "@municipalos/permissions";
-import type { ChangeStatusInput, CreateServiceRequestInput, ListServiceRequestsQuery } from "@municipalos/validation";
 import {
-  OPEN_SERVICE_REQUEST_STATUSES, availableTransitions, checkTransition, serviceRequestWorkflow,
-  type ServiceRequestStatus, type ServiceRequestWorkflowPermission,
+  serviceRequestVisibility,
+  toPermissionSet,
+  type RequestVisibility,
+} from "@municipalos/permissions";
+import type {
+  ChangeStatusInput,
+  CreateServiceRequestInput,
+  ListServiceRequestsQuery,
+} from "@municipalos/validation";
+import {
+  OPEN_SERVICE_REQUEST_STATUSES,
+  availableTransitions,
+  checkTransition,
+  serviceRequestWorkflow,
+  type ServiceRequestStatus,
+  type ServiceRequestWorkflowPermission,
 } from "@municipalos/workflows";
 import type { AppDeps, Municipality, StaffContext } from "../context";
 import { AppError, conflict, forbidden, notFound, unprocessable } from "../errors";
 import { recordAudit } from "../lib/audit";
 import { generateReference } from "../lib/reference";
-import { deliverQueuedEmails, departmentStaffUserIds, notifyStaffUsers, queueResidentEmail } from "./notify";
+import {
+  deliverQueuedEmails,
+  departmentStaffUserIds,
+  notifyStaffUsers,
+  queueResidentEmail,
+} from "./notify";
 
 export interface RequestMeta {
   ip: string;
@@ -88,25 +126,46 @@ export async function createServiceRequest(
         .from(moduleEntitlements)
         .where(eq(moduleEntitlements.moduleKey, "service_requests"));
       if (!entitlement?.enabled) {
-        throw new AppError(404, "module_not_enabled", "Online service requests are not available for this municipality.");
+        throw new AppError(
+          404,
+          "module_not_enabled",
+          "Online service requests are not available for this municipality.",
+        );
       }
 
       if (idempotencyKey) {
         const [existing] = await findExisting(tx);
-        if (existing) return { result: { ...existing, createdAt: iso(existing.createdAt), created: false }, emailIds: [] };
+        if (existing)
+          return {
+            result: { ...existing, createdAt: iso(existing.createdAt), created: false },
+            emailIds: [],
+          };
       }
 
       const [settings] = await tx.select().from(municipalitySettings);
-      if (settings && !settings.allowAnonymousRequests && !(input.reporterName && input.reporterEmail)) {
-        throw unprocessable("contact_required", "This municipality requires your name and email to submit a request.");
+      if (
+        settings &&
+        !settings.allowAnonymousRequests &&
+        !(input.reporterName && input.reporterEmail)
+      ) {
+        throw unprocessable(
+          "contact_required",
+          "This municipality requires your name and email to submit a request.",
+        );
       }
 
       const [category] = await tx
-        .select({ id: categories.id, name: categories.name, departmentId: categories.departmentId, departmentName: departments.name })
+        .select({
+          id: categories.id,
+          name: categories.name,
+          departmentId: categories.departmentId,
+          departmentName: departments.name,
+        })
         .from(categories)
         .innerJoin(departments, eq(departments.id, categories.departmentId))
         .where(and(eq(categories.id, input.categoryId), eq(categories.isActive, true)));
-      if (!category) throw unprocessable("invalid_category", "Choose a request category from the list.");
+      if (!category)
+        throw unprocessable("invalid_category", "Choose a request category from the list.");
 
       const [request] = await tx
         .insert(requests)
@@ -142,7 +201,11 @@ export async function createServiceRequest(
         action: "service_request.created",
         entityType: "service_request",
         entityId: request.id,
-        metadata: { reference: request.reference, categoryId: category.id, departmentId: category.departmentId },
+        metadata: {
+          reference: request.reference,
+          categoryId: category.id,
+          departmentId: category.departmentId,
+        },
         ...meta,
       });
       await notifyStaffUsers(
@@ -153,7 +216,14 @@ export async function createServiceRequest(
         request.locationText,
         request.id,
       );
-      const emailIds = await queueResidentEmail(tx, deps, municipality, request, category.name, RESIDENT_HEADLINES.new);
+      const emailIds = await queueResidentEmail(
+        tx,
+        deps,
+        municipality,
+        request,
+        category.name,
+        RESIDENT_HEADLINES.new,
+      );
 
       return {
         result: {
@@ -184,7 +254,11 @@ export async function createServiceRequest(
 
 /* ───────────────────────────── Resident: track ───────────────────────────── */
 
-export async function getPublicRequest(deps: AppDeps, municipality: Municipality, reference: string) {
+export async function getPublicRequest(
+  deps: AppDeps,
+  municipality: Municipality,
+  reference: string,
+) {
   return withTenant(deps.db, { municipalityId: municipality.id }, async (tx) => {
     const [request] = await tx
       .select({
@@ -205,10 +279,17 @@ export async function getPublicRequest(deps: AppDeps, municipality: Municipality
     if (!request) throw notFound("Request");
 
     const timeline = await tx
-      .select({ id: events.id, type: events.type, toStatus: events.toStatus, body: events.body, actorKind: events.actorKind, createdAt: events.createdAt })
+      .select({
+        id: events.id,
+        type: events.type,
+        toStatus: events.toStatus,
+        body: events.body,
+        actorKind: events.actorKind,
+        createdAt: events.createdAt,
+      })
       .from(events)
       .where(and(eq(events.requestId, request.id), eq(events.visibility, "public")))
-      .orderBy(asc(events.createdAt), asc(events.id));
+      .orderBy(asc(events.seq));
 
     // Deliberately excludes reporter contact details, assignee and internal notes.
     return {
@@ -244,7 +325,8 @@ export async function addResidentMessage(
   await withTenant(deps.db, { municipalityId: municipality.id }, async (tx) => {
     const [request] = await tx.select().from(requests).where(eq(requests.reference, reference));
     if (!request) throw notFound("Request");
-    if (request.status === "closed") throw conflict("request_closed", "This request is closed. Please submit a new request.");
+    if (request.status === "closed")
+      throw conflict("request_closed", "This request is closed. Please submit a new request.");
     await tx.insert(events).values({
       municipalityId: municipality.id,
       requestId: request.id,
@@ -265,7 +347,14 @@ export async function addResidentMessage(
     const recipients = request.assignedToUserId
       ? [request.assignedToUserId]
       : await departmentStaffUserIds(tx, request.departmentId);
-    await notifyStaffUsers(tx, municipality.id, recipients, `Resident replied on ${request.reference}`, body.slice(0, 140), request.id);
+    await notifyStaffUsers(
+      tx,
+      municipality.id,
+      recipients,
+      `Resident replied on ${request.reference}`,
+      body.slice(0, 140),
+      request.id,
+    );
   });
 }
 
@@ -313,7 +402,8 @@ const toListItem = (r: ListRow) => ({
   categoryName: r.categoryName,
   departmentId: r.departmentId,
   departmentName: r.departmentName,
-  assignee: r.assignedToUserId && r.assigneeName ? { id: r.assignedToUserId, name: r.assigneeName } : null,
+  assignee:
+    r.assignedToUserId && r.assigneeName ? { id: r.assignedToUserId, name: r.assigneeName } : null,
   createdAt: iso(r.createdAt),
   updatedAt: iso(r.updatedAt),
 });
@@ -327,9 +417,15 @@ function listQuery(tx: Tx) {
     .leftJoin(assignee, eq(assignee.id, requests.assignedToUserId));
 }
 
-export async function listRequests(deps: AppDeps, staff: StaffContext, userId: string, query: ListServiceRequestsQuery) {
+export async function listRequests(
+  deps: AppDeps,
+  staff: StaffContext,
+  userId: string,
+  query: ListServiceRequestsQuery,
+) {
   const visibility = staffVisibility(staff);
-  if (visibility.scope === "none") throw forbidden("Your role does not include access to service requests.");
+  if (visibility.scope === "none")
+    throw forbidden("Your role does not include access to service requests.");
 
   const conditions = [
     visibilityCondition(visibility),
@@ -354,7 +450,11 @@ export async function listRequests(deps: AppDeps, staff: StaffContext, userId: s
   ];
   const where = and(...conditions);
   const order =
-    query.sort === "oldest" ? asc(requests.createdAt) : query.sort === "updated" ? desc(requests.updatedAt) : desc(requests.createdAt);
+    query.sort === "oldest"
+      ? asc(requests.createdAt)
+      : query.sort === "updated"
+        ? desc(requests.updatedAt)
+        : desc(requests.createdAt);
 
   return withTenant(deps.db, { municipalityId: staff.municipality.id, userId }, async (tx) => {
     const [total] = await tx.select({ value: count() }).from(requests).where(where);
@@ -382,7 +482,12 @@ async function loadVisibleRequest(tx: Tx, staff: StaffContext, id: string) {
   return request;
 }
 
-export async function getRequestDetail(deps: AppDeps, staff: StaffContext, userId: string, id: string) {
+export async function getRequestDetail(
+  deps: AppDeps,
+  staff: StaffContext,
+  userId: string,
+  id: string,
+) {
   return withTenant(deps.db, { municipalityId: staff.municipality.id, userId }, async (tx) => {
     const request = await loadVisibleRequest(tx, staff, id);
     const [row] = await listQuery(tx).where(eq(requests.id, request.id));
@@ -392,15 +497,22 @@ export async function getRequestDetail(deps: AppDeps, staff: StaffContext, userI
     const subject = alias(users, "subject");
     const history = await tx
       .select({
-        id: events.id, type: events.type, visibility: events.visibility, fromStatus: events.fromStatus,
-        toStatus: events.toStatus, body: events.body, actorKind: events.actorKind, actorName: actor.name,
-        subjectName: subject.name, createdAt: events.createdAt,
+        id: events.id,
+        type: events.type,
+        visibility: events.visibility,
+        fromStatus: events.fromStatus,
+        toStatus: events.toStatus,
+        body: events.body,
+        actorKind: events.actorKind,
+        actorName: actor.name,
+        subjectName: subject.name,
+        createdAt: events.createdAt,
       })
       .from(events)
       .leftJoin(actor, eq(actor.id, events.actorUserId))
       .leftJoin(subject, eq(subject.id, events.subjectUserId))
       .where(eq(events.requestId, request.id))
-      .orderBy(asc(events.createdAt), asc(events.id));
+      .orderBy(asc(events.seq));
 
     // Possible duplicates: other open requests in the same category within ~150 m, or at the
     // same typed location. A hint for staff review only; nothing is merged automatically.
@@ -410,7 +522,13 @@ export async function getRequestDetail(deps: AppDeps, staff: StaffContext, userI
               and ${requests.longitude} between ${request.longitude - 0.0018} and ${request.longitude + 0.0018})`
         : sql`false`;
     const duplicates = await tx
-      .select({ id: requests.id, reference: requests.reference, status: requests.status, locationText: requests.locationText, createdAt: requests.createdAt })
+      .select({
+        id: requests.id,
+        reference: requests.reference,
+        status: requests.status,
+        locationText: requests.locationText,
+        createdAt: requests.createdAt,
+      })
       .from(requests)
       .where(
         and(
@@ -434,7 +552,11 @@ export async function getRequestDetail(deps: AppDeps, staff: StaffContext, userI
       ...toListItem(row),
       latitude: request.latitude,
       longitude: request.longitude,
-      reporter: { name: request.reporterName, email: request.reporterEmail, phone: request.reporterPhone },
+      reporter: {
+        name: request.reporterName,
+        email: request.reporterEmail,
+        phone: request.reporterPhone,
+      },
       resolvedAt: isoOrNull(request.resolvedAt),
       closedAt: isoOrNull(request.closedAt),
       events: history.map((e) => ({
@@ -453,7 +575,11 @@ export async function getRequestDetail(deps: AppDeps, staff: StaffContext, userI
         .filter((t) => !t.requiresAssignee)
         .map((t) => ({ to: t.to, label: t.label, requiresNote: Boolean(t.requiresNote) })),
       possibleDuplicates: duplicates.map((d) => ({
-        id: d.id, reference: d.reference, status: d.status, locationText: d.locationText, createdAt: iso(d.createdAt),
+        id: d.id,
+        reference: d.reference,
+        status: d.status,
+        locationText: d.locationText,
+        createdAt: iso(d.createdAt),
       })),
     };
   });
@@ -462,12 +588,21 @@ export async function getRequestDetail(deps: AppDeps, staff: StaffContext, userI
 /* ───────────────────────────── Staff: mutate ───────────────────────────── */
 
 async function categoryName(tx: Tx, categoryId: string): Promise<string> {
-  const [c] = await tx.select({ name: categories.name }).from(categories).where(eq(categories.id, categoryId));
+  const [c] = await tx
+    .select({ name: categories.name })
+    .from(categories)
+    .where(eq(categories.id, categoryId));
   return c?.name ?? "Service request";
 }
 
 /** Applies a status change guarded by the stored status, so concurrent updates cannot both win. */
-async function applyStatus(tx: Tx, requestId: string, from: ServiceRequestStatus, to: ServiceRequestStatus, extra: Partial<typeof requests.$inferInsert> = {}) {
+async function applyStatus(
+  tx: Tx,
+  requestId: string,
+  from: ServiceRequestStatus,
+  to: ServiceRequestStatus,
+  extra: Partial<typeof requests.$inferInsert> = {},
+) {
   const now = new Date();
   const updated = await tx
     .update(requests)
@@ -481,7 +616,10 @@ async function applyStatus(tx: Tx, requestId: string, from: ServiceRequestStatus
     .where(and(eq(requests.id, requestId), eq(requests.status, from)))
     .returning({ id: requests.id });
   if (updated.length === 0) {
-    throw conflict("stale_status", "This request was just updated by someone else. Reload and try again.");
+    throw conflict(
+      "stale_status",
+      "This request was just updated by someone else. Reload and try again.",
+    );
   }
 }
 
@@ -494,55 +632,68 @@ export async function changeStatus(
   meta: RequestMeta,
 ): Promise<void> {
   const { municipality } = staff;
-  const emailIds = await withTenant(deps.db, { municipalityId: municipality.id, userId }, async (tx) => {
-    const request = await loadVisibleRequest(tx, staff, id);
-    const check = checkTransition(serviceRequestWorkflow, {
-      from: request.status,
-      to: input.to,
-      permissions: staff.permissions as ReadonlySet<ServiceRequestWorkflowPermission>,
-      note: input.note,
-    });
-    if (!check.ok) {
-      if (check.reason === "forbidden") throw forbidden();
-      if (check.reason === "note_required") throw unprocessable("note_required", "Add a note explaining this change.");
-      throw unprocessable(
-        "invalid_transition",
-        `A request that is "${serviceRequestWorkflow.states[request.status].label}" cannot be moved to "${serviceRequestWorkflow.states[input.to].label}".`,
-      );
-    }
-    if (check.transition.requiresAssignee) {
-      throw unprocessable("assignee_required", "Assign the request to a staff member to move it to Assigned.");
-    }
+  const emailIds = await withTenant(
+    deps.db,
+    { municipalityId: municipality.id, userId },
+    async (tx) => {
+      const request = await loadVisibleRequest(tx, staff, id);
+      const check = checkTransition(serviceRequestWorkflow, {
+        from: request.status,
+        to: input.to,
+        permissions: staff.permissions as ReadonlySet<ServiceRequestWorkflowPermission>,
+        note: input.note,
+      });
+      if (!check.ok) {
+        if (check.reason === "forbidden") throw forbidden();
+        if (check.reason === "note_required")
+          throw unprocessable("note_required", "Add a note explaining this change.");
+        throw unprocessable(
+          "invalid_transition",
+          `A request that is "${serviceRequestWorkflow.states[request.status].label}" cannot be moved to "${serviceRequestWorkflow.states[input.to].label}".`,
+        );
+      }
+      if (check.transition.requiresAssignee) {
+        throw unprocessable(
+          "assignee_required",
+          "Assign the request to a staff member to move it to Assigned.",
+        );
+      }
 
-    await applyStatus(tx, request.id, request.status, input.to);
-    await tx.insert(events).values({
-      municipalityId: municipality.id,
-      requestId: request.id,
-      type: "status_changed",
-      visibility: "public",
-      fromStatus: request.status,
-      toStatus: input.to,
-      body: input.note ?? null,
-      actorKind: "staff",
-      actorUserId: userId,
-    });
-    await recordAudit(tx, {
-      municipalityId: municipality.id,
-      actorKind: "staff",
-      actorUserId: userId,
-      action: "service_request.status_changed",
-      entityType: "service_request",
-      entityId: request.id,
-      metadata: { reference: request.reference, from: request.status, to: input.to },
-      ...meta,
-    });
-    const reopened = !serviceRequestWorkflow.states[request.status].open && input.to === "in_progress";
-    return queueResidentEmail(
-      tx, deps, municipality, request, await categoryName(tx, request.categoryId),
-      reopened ? "Your request has been reopened" : RESIDENT_HEADLINES[input.to],
-      input.note,
-    );
-  });
+      await applyStatus(tx, request.id, request.status, input.to);
+      await tx.insert(events).values({
+        municipalityId: municipality.id,
+        requestId: request.id,
+        type: "status_changed",
+        visibility: "public",
+        fromStatus: request.status,
+        toStatus: input.to,
+        body: input.note ?? null,
+        actorKind: "staff",
+        actorUserId: userId,
+      });
+      await recordAudit(tx, {
+        municipalityId: municipality.id,
+        actorKind: "staff",
+        actorUserId: userId,
+        action: "service_request.status_changed",
+        entityType: "service_request",
+        entityId: request.id,
+        metadata: { reference: request.reference, from: request.status, to: input.to },
+        ...meta,
+      });
+      const reopened =
+        !serviceRequestWorkflow.states[request.status].open && input.to === "in_progress";
+      return queueResidentEmail(
+        tx,
+        deps,
+        municipality,
+        request,
+        await categoryName(tx, request.categoryId),
+        reopened ? "Your request has been reopened" : RESIDENT_HEADLINES[input.to],
+        input.note,
+      );
+    },
+  );
   await deliverQueuedEmails(deps, municipality.id, emailIds);
 }
 
@@ -550,8 +701,12 @@ export async function changeStatus(
 async function staffWhoCanAccess(tx: Tx, departmentId: string) {
   const members = await tx
     .select({
-      userId: staffMemberships.userId, name: users.name, title: staffMemberships.title,
-      departmentId: staffMemberships.departmentId, roleId: staffMemberships.roleId, roleName: roles.name,
+      userId: staffMemberships.userId,
+      name: users.name,
+      title: staffMemberships.title,
+      departmentId: staffMemberships.departmentId,
+      roleId: staffMemberships.roleId,
+      roleName: roles.name,
     })
     .from(staffMemberships)
     .innerJoin(users, eq(users.id, staffMemberships.userId))
@@ -560,18 +715,30 @@ async function staffWhoCanAccess(tx: Tx, departmentId: string) {
     .orderBy(asc(users.name));
   const perms = await tx.select().from(rolePermissions);
   return members.filter((m) => {
-    const granted = toPermissionSet(perms.filter((p) => p.roleId === m.roleId).map((p) => p.permission));
+    const granted = toPermissionSet(
+      perms.filter((p) => p.roleId === m.roleId).map((p) => p.permission),
+    );
     if (!granted.has("service_requests.update_status")) return false;
     const v = serviceRequestVisibility(granted, m.departmentId);
     return v.scope === "all" || (v.scope === "department" && v.departmentId === departmentId);
   });
 }
 
-export async function listAssignableStaff(deps: AppDeps, staff: StaffContext, userId: string, id: string) {
+export async function listAssignableStaff(
+  deps: AppDeps,
+  staff: StaffContext,
+  userId: string,
+  id: string,
+) {
   return withTenant(deps.db, { municipalityId: staff.municipality.id, userId }, async (tx) => {
     const request = await loadVisibleRequest(tx, staff, id);
     const members = await staffWhoCanAccess(tx, request.departmentId);
-    return members.map((m) => ({ id: m.userId, name: m.name, title: m.title, roleName: m.roleName }));
+    return members.map((m) => ({
+      id: m.userId,
+      name: m.name,
+      title: m.title,
+      roleName: m.roleName,
+    }));
   });
 }
 
@@ -584,45 +751,89 @@ export async function assignRequest(
   meta: RequestMeta,
 ): Promise<void> {
   const { municipality } = staff;
-  const emailIds = await withTenant(deps.db, { municipalityId: municipality.id, userId }, async (tx) => {
-    const request = await loadVisibleRequest(tx, staff, id);
-    if (!serviceRequestWorkflow.states[request.status].open) {
-      throw conflict("request_not_open", "Reopen this request before assigning it.");
-    }
-    // The assignee must be staff of THIS municipality who can work this department's requests.
-    const eligible = await staffWhoCanAccess(tx, request.departmentId);
-    const target = eligible.find((m) => m.userId === assigneeUserId);
-    if (!target) throw unprocessable("invalid_assignee", "That person cannot be assigned to this request.");
-    if (request.assignedToUserId === assigneeUserId) return [];
+  const emailIds = await withTenant(
+    deps.db,
+    { municipalityId: municipality.id, userId },
+    async (tx) => {
+      const request = await loadVisibleRequest(tx, staff, id);
+      if (!serviceRequestWorkflow.states[request.status].open) {
+        throw conflict("request_not_open", "Reopen this request before assigning it.");
+      }
+      // The assignee must be staff of THIS municipality who can work this department's requests.
+      const eligible = await staffWhoCanAccess(tx, request.departmentId);
+      const target = eligible.find((m) => m.userId === assigneeUserId);
+      if (!target)
+        throw unprocessable("invalid_assignee", "That person cannot be assigned to this request.");
+      if (request.assignedToUserId === assigneeUserId) return [];
 
-    const becomesAssigned = request.status === "new" || request.status === "reviewed";
-    if (becomesAssigned) {
-      await applyStatus(tx, request.id, request.status, "assigned", { assignedToUserId: assigneeUserId });
-    } else {
-      await tx.update(requests).set({ assignedToUserId: assigneeUserId, updatedAt: new Date() }).where(eq(requests.id, request.id));
-    }
-    const base = { municipalityId: municipality.id, requestId: request.id, actorKind: "staff" as const, actorUserId: userId };
-    await tx.insert(events).values({ ...base, type: "assigned", visibility: "internal", subjectUserId: assigneeUserId });
-    if (becomesAssigned) {
-      await tx.insert(events).values({ ...base, type: "status_changed", visibility: "public", fromStatus: request.status, toStatus: "assigned" });
-    }
-    await recordAudit(tx, {
-      municipalityId: municipality.id,
-      actorKind: "staff",
-      actorUserId: userId,
-      action: "service_request.assigned",
-      entityType: "service_request",
-      entityId: request.id,
-      metadata: { reference: request.reference, assigneeUserId, previousAssigneeUserId: request.assignedToUserId },
-      ...meta,
-    });
-    if (assigneeUserId !== userId) {
-      await notifyStaffUsers(tx, municipality.id, [assigneeUserId], `${request.reference} was assigned to you`, request.locationText, request.id);
-    }
-    return becomesAssigned
-      ? queueResidentEmail(tx, deps, municipality, request, await categoryName(tx, request.categoryId), RESIDENT_HEADLINES.assigned)
-      : [];
-  });
+      const becomesAssigned = request.status === "new" || request.status === "reviewed";
+      if (becomesAssigned) {
+        await applyStatus(tx, request.id, request.status, "assigned", {
+          assignedToUserId: assigneeUserId,
+        });
+      } else {
+        await tx
+          .update(requests)
+          .set({ assignedToUserId: assigneeUserId, updatedAt: new Date() })
+          .where(eq(requests.id, request.id));
+      }
+      const base = {
+        municipalityId: municipality.id,
+        requestId: request.id,
+        actorKind: "staff" as const,
+        actorUserId: userId,
+      };
+      await tx.insert(events).values({
+        ...base,
+        type: "assigned",
+        visibility: "internal",
+        subjectUserId: assigneeUserId,
+      });
+      if (becomesAssigned) {
+        await tx.insert(events).values({
+          ...base,
+          type: "status_changed",
+          visibility: "public",
+          fromStatus: request.status,
+          toStatus: "assigned",
+        });
+      }
+      await recordAudit(tx, {
+        municipalityId: municipality.id,
+        actorKind: "staff",
+        actorUserId: userId,
+        action: "service_request.assigned",
+        entityType: "service_request",
+        entityId: request.id,
+        metadata: {
+          reference: request.reference,
+          assigneeUserId,
+          previousAssigneeUserId: request.assignedToUserId,
+        },
+        ...meta,
+      });
+      if (assigneeUserId !== userId) {
+        await notifyStaffUsers(
+          tx,
+          municipality.id,
+          [assigneeUserId],
+          `${request.reference} was assigned to you`,
+          request.locationText,
+          request.id,
+        );
+      }
+      return becomesAssigned
+        ? queueResidentEmail(
+            tx,
+            deps,
+            municipality,
+            request,
+            await categoryName(tx, request.categoryId),
+            RESIDENT_HEADLINES.assigned,
+          )
+        : [];
+    },
+  );
   await deliverQueuedEmails(deps, municipality.id, emailIds);
 }
 
@@ -635,32 +846,47 @@ export async function addStaffComment(
   meta: RequestMeta,
 ): Promise<void> {
   const { municipality } = staff;
-  const emailIds = await withTenant(deps.db, { municipalityId: municipality.id, userId }, async (tx) => {
-    const request = await loadVisibleRequest(tx, staff, id);
-    await tx.insert(events).values({
-      municipalityId: municipality.id,
-      requestId: request.id,
-      type: input.visibility === "public" ? "staff_message" : "staff_note",
-      visibility: input.visibility,
-      body: input.body,
-      actorKind: "staff",
-      actorUserId: userId,
-    });
-    await tx.update(requests).set({ updatedAt: new Date() }).where(eq(requests.id, request.id));
-    await recordAudit(tx, {
-      municipalityId: municipality.id,
-      actorKind: "staff",
-      actorUserId: userId,
-      action: input.visibility === "public" ? "service_request.message_sent" : "service_request.note_added",
-      entityType: "service_request",
-      entityId: request.id,
-      metadata: { reference: request.reference },
-      ...meta,
-    });
-    return input.visibility === "public"
-      ? queueResidentEmail(tx, deps, municipality, request, await categoryName(tx, request.categoryId), "City staff sent you a message about your request", input.body)
-      : [];
-  });
+  const emailIds = await withTenant(
+    deps.db,
+    { municipalityId: municipality.id, userId },
+    async (tx) => {
+      const request = await loadVisibleRequest(tx, staff, id);
+      await tx.insert(events).values({
+        municipalityId: municipality.id,
+        requestId: request.id,
+        type: input.visibility === "public" ? "staff_message" : "staff_note",
+        visibility: input.visibility,
+        body: input.body,
+        actorKind: "staff",
+        actorUserId: userId,
+      });
+      await tx.update(requests).set({ updatedAt: new Date() }).where(eq(requests.id, request.id));
+      await recordAudit(tx, {
+        municipalityId: municipality.id,
+        actorKind: "staff",
+        actorUserId: userId,
+        action:
+          input.visibility === "public"
+            ? "service_request.message_sent"
+            : "service_request.note_added",
+        entityType: "service_request",
+        entityId: request.id,
+        metadata: { reference: request.reference },
+        ...meta,
+      });
+      return input.visibility === "public"
+        ? queueResidentEmail(
+            tx,
+            deps,
+            municipality,
+            request,
+            await categoryName(tx, request.categoryId),
+            "City staff sent you a message about your request",
+            input.body,
+          )
+        : [];
+    },
+  );
   await deliverQueuedEmails(deps, municipality.id, emailIds);
 }
 
@@ -669,7 +895,13 @@ export async function addStaffComment(
 export async function getDashboard(deps: AppDeps, staff: StaffContext, userId: string) {
   const visibility = staffVisibility(staff);
   if (visibility.scope === "none") {
-    return { hasRequestAccess: false as const, statusCounts: [], myQueue: [], needsTriage: [], metrics: null };
+    return {
+      hasRequestAccess: false as const,
+      statusCounts: [],
+      myQueue: [],
+      needsTriage: [],
+      metrics: null,
+    };
   }
   const visible = visibilityCondition(visibility);
   return withTenant(deps.db, { municipalityId: staff.municipality.id, userId }, async (tx) => {
@@ -679,7 +911,13 @@ export async function getDashboard(deps: AppDeps, staff: StaffContext, userId: s
       .where(visible)
       .groupBy(requests.status);
     const myQueue = await listQuery(tx)
-      .where(and(visible, eq(requests.assignedToUserId, userId), inArray(requests.status, OPEN_SERVICE_REQUEST_STATUSES)))
+      .where(
+        and(
+          visible,
+          eq(requests.assignedToUserId, userId),
+          inArray(requests.status, OPEN_SERVICE_REQUEST_STATUSES),
+        ),
+      )
       .orderBy(asc(requests.createdAt))
       .limit(10);
     const needsTriage = await listQuery(tx)
@@ -692,27 +930,35 @@ export async function getDashboard(deps: AppDeps, staff: StaffContext, userId: s
     const [resolved] = await tx
       .select({
         value: count(),
-        avgHours: sql<number | null>`avg(extract(epoch from (${requests.resolvedAt} - ${requests.createdAt})) / 3600)::float8`,
+        avgHours: sql<
+          number | null
+        >`avg(extract(epoch from (${requests.resolvedAt} - ${requests.createdAt})) / 3600)::float8`,
       })
       .from(requests)
       .where(and(visible, gte(requests.resolvedAt, since30)));
-    const [received] = await tx.select({ value: count() }).from(requests).where(and(visible, gte(requests.createdAt, since7)));
+    const [received] = await tx
+      .select({ value: count() })
+      .from(requests)
+      .where(and(visible, gte(requests.createdAt, since7)));
 
     const byStatus = new Map(counts.map((c) => [c.status, c.value]));
     return {
       hasRequestAccess: true as const,
-      statusCounts: (Object.keys(serviceRequestWorkflow.states) as ServiceRequestStatus[]).map((status) => ({
-        status,
-        label: serviceRequestWorkflow.states[status].label,
-        count: byStatus.get(status) ?? 0,
-      })),
+      statusCounts: (Object.keys(serviceRequestWorkflow.states) as ServiceRequestStatus[]).map(
+        (status) => ({
+          status,
+          label: serviceRequestWorkflow.states[status].label,
+          count: byStatus.get(status) ?? 0,
+        }),
+      ),
       myQueue: myQueue.map(toListItem),
       needsTriage: needsTriage.map(toListItem),
       metrics: {
         open: OPEN_SERVICE_REQUEST_STATUSES.reduce((n, st) => n + (byStatus.get(st) ?? 0), 0),
         receivedLast7Days: received?.value ?? 0,
         resolvedLast30Days: resolved?.value ?? 0,
-        avgHoursToResolveLast30Days: resolved?.avgHours == null ? null : Math.round(resolved.avgHours * 10) / 10,
+        avgHoursToResolveLast30Days:
+          resolved?.avgHours == null ? null : Math.round(resolved.avgHours * 10) / 10,
       },
     };
   });

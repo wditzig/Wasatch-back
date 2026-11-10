@@ -1,20 +1,50 @@
 import { OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import {
-  and, asc, auditEvents, count, departments, desc, eq, isNull, notifications, users, withTenant,
+  and,
+  asc,
+  auditEvents,
+  count,
+  departments,
+  desc,
+  eq,
+  isNull,
+  notifications,
+  users,
+  withTenant,
 } from "@municipalos/database";
 import {
-  changeStatusSchema, listServiceRequestsQuerySchema, paginationQuerySchema, staffCommentSchema,
+  changeStatusSchema,
+  listServiceRequestsQuerySchema,
+  paginationQuerySchema,
+  staffCommentSchema,
 } from "@municipalos/validation";
 import type { Context } from "hono";
 import type { AppDeps, AppEnv } from "../context";
 import { notFound } from "../errors";
 import { assertCan, requireSession, requireStaff } from "../middleware/auth";
 import {
-  auditEventSchema, body, dashboardSchema, errorResponses, idParam, json, notificationSchema, okSchema,
-  paginationSchema, requestDetailSchema, requestListItemSchema, slugParam, staffMeSchema,
+  auditEventSchema,
+  body,
+  dashboardSchema,
+  errorResponses,
+  idParam,
+  json,
+  notificationSchema,
+  okSchema,
+  paginationSchema,
+  requestDetailSchema,
+  requestListItemSchema,
+  slugParam,
+  staffMeSchema,
 } from "../schemas";
 import {
-  addStaffComment, assignRequest, changeStatus, getDashboard, getRequestDetail, listAssignableStaff, listRequests,
+  addStaffComment,
+  assignRequest,
+  changeStatus,
+  getDashboard,
+  getRequestDetail,
+  listAssignableStaff,
+  listRequests,
 } from "../services/service-requests";
 import { validationHook } from "../validation-hook";
 
@@ -32,11 +62,17 @@ export function staffRoutes(deps: AppDeps) {
     userId: c.get("auth").user.id,
     meta: { ip: c.get("ip"), requestId: c.get("requestId") },
   });
-  const tenant = (c: Context<AppEnv>) => ({ municipalityId: c.get("staff").municipality.id, userId: c.get("auth").user.id });
+  const tenant = (c: Context<AppEnv>) => ({
+    municipalityId: c.get("staff").municipality.id,
+    userId: c.get("auth").user.id,
+  });
 
   app.openapi(
     createRoute({
-      method: "get", path: "/{slug}/me", tags, security,
+      method: "get",
+      path: "/{slug}/me",
+      tags,
+      security,
       summary: "The caller's membership and permissions in this municipality",
       request: { params: slugParam },
       responses: { 200: json(staffMeSchema, "Membership"), ...errorResponses },
@@ -48,7 +84,13 @@ export function staffRoutes(deps: AppDeps) {
         tx
           .select({ value: count() })
           .from(notifications)
-          .where(and(eq(notifications.recipientUserId, userId), eq(notifications.channel, "in_app"), isNull(notifications.readAt))),
+          .where(
+            and(
+              eq(notifications.recipientUserId, userId),
+              eq(notifications.channel, "in_app"),
+              isNull(notifications.readAt),
+            ),
+          ),
       );
       const m = staff.municipality;
       return c.json(
@@ -71,7 +113,10 @@ export function staffRoutes(deps: AppDeps) {
 
   app.openapi(
     createRoute({
-      method: "get", path: "/{slug}/dashboard", tags, security,
+      method: "get",
+      path: "/{slug}/dashboard",
+      tags,
+      security,
       summary: "Role-aware work queue and metrics",
       request: { params: slugParam },
       responses: { 200: json(dashboardSchema, "Dashboard"), ...errorResponses },
@@ -84,14 +129,26 @@ export function staffRoutes(deps: AppDeps) {
 
   app.openapi(
     createRoute({
-      method: "get", path: "/{slug}/departments", tags, security,
+      method: "get",
+      path: "/{slug}/departments",
+      tags,
+      security,
       summary: "Departments of the municipality",
       request: { params: slugParam },
-      responses: { 200: json(z.object({ items: z.array(z.object({ id: z.string(), name: z.string() })) }), "Departments"), ...errorResponses },
+      responses: {
+        200: json(
+          z.object({ items: z.array(z.object({ id: z.string(), name: z.string() })) }),
+          "Departments",
+        ),
+        ...errorResponses,
+      },
     }),
     async (c) => {
       const items = await withTenant(deps.db, tenant(c), (tx) =>
-        tx.select({ id: departments.id, name: departments.name }).from(departments).orderBy(asc(departments.sortOrder)),
+        tx
+          .select({ id: departments.id, name: departments.name })
+          .from(departments)
+          .orderBy(asc(departments.sortOrder)),
       );
       return c.json({ items }, 200);
     },
@@ -99,11 +156,17 @@ export function staffRoutes(deps: AppDeps) {
 
   app.openapi(
     createRoute({
-      method: "get", path: "/{slug}/service-requests", tags, security,
+      method: "get",
+      path: "/{slug}/service-requests",
+      tags,
+      security,
       summary: "List service requests visible to the caller",
       request: { params: slugParam, query: listServiceRequestsQuerySchema },
       responses: {
-        200: json(z.object({ items: z.array(requestListItemSchema), pagination: paginationSchema }), "Requests"),
+        200: json(
+          z.object({ items: z.array(requestListItemSchema), pagination: paginationSchema }),
+          "Requests",
+        ),
         ...errorResponses,
       },
     }),
@@ -115,7 +178,10 @@ export function staffRoutes(deps: AppDeps) {
 
   app.openapi(
     createRoute({
-      method: "get", path: "/{slug}/service-requests/{id}", tags, security,
+      method: "get",
+      path: "/{slug}/service-requests/{id}",
+      tags,
+      security,
       summary: "Request detail with full history",
       request: { params: idParam },
       responses: { 200: json(requestDetailSchema, "Request"), ...errorResponses },
@@ -128,7 +194,10 @@ export function staffRoutes(deps: AppDeps) {
 
   app.openapi(
     createRoute({
-      method: "post", path: "/{slug}/service-requests/{id}/status", tags, security,
+      method: "post",
+      path: "/{slug}/service-requests/{id}/status",
+      tags,
+      security,
       summary: "Move a request to another workflow state",
       request: { params: idParam, body: body(changeStatusSchema) },
       responses: { 200: json(okSchema, "Status changed"), ...errorResponses },
@@ -142,12 +211,24 @@ export function staffRoutes(deps: AppDeps) {
 
   app.openapi(
     createRoute({
-      method: "get", path: "/{slug}/service-requests/{id}/assignable-staff", tags, security,
+      method: "get",
+      path: "/{slug}/service-requests/{id}/assignable-staff",
+      tags,
+      security,
       summary: "Staff who may be assigned to this request",
       request: { params: idParam },
       responses: {
         200: json(
-          z.object({ items: z.array(z.object({ id: z.string(), name: z.string(), title: z.string().nullable(), roleName: z.string() })) }),
+          z.object({
+            items: z.array(
+              z.object({
+                id: z.string(),
+                name: z.string(),
+                title: z.string().nullable(),
+                roleName: z.string(),
+              }),
+            ),
+          }),
           "Assignable staff",
         ),
         ...errorResponses,
@@ -156,13 +237,19 @@ export function staffRoutes(deps: AppDeps) {
     async (c) => {
       assertCan(c, "service_requests.assign");
       const { staff, userId } = ctx(c);
-      return c.json({ items: await listAssignableStaff(deps, staff, userId, c.req.valid("param").id) }, 200);
+      return c.json(
+        { items: await listAssignableStaff(deps, staff, userId, c.req.valid("param").id) },
+        200,
+      );
     },
   );
 
   app.openapi(
     createRoute({
-      method: "post", path: "/{slug}/service-requests/{id}/assign", tags, security,
+      method: "post",
+      path: "/{slug}/service-requests/{id}/assign",
+      tags,
+      security,
       summary: "Assign (or reassign) a request",
       request: { params: idParam, body: body(z.object({ assigneeUserId: z.uuid() })) },
       responses: { 200: json(okSchema, "Assigned"), ...errorResponses },
@@ -170,14 +257,24 @@ export function staffRoutes(deps: AppDeps) {
     async (c) => {
       assertCan(c, "service_requests.assign");
       const { staff, userId, meta } = ctx(c);
-      await assignRequest(deps, staff, userId, c.req.valid("param").id, c.req.valid("json").assigneeUserId, meta);
+      await assignRequest(
+        deps,
+        staff,
+        userId,
+        c.req.valid("param").id,
+        c.req.valid("json").assigneeUserId,
+        meta,
+      );
       return c.json(ok, 200);
     },
   );
 
   app.openapi(
     createRoute({
-      method: "post", path: "/{slug}/service-requests/{id}/comments", tags, security,
+      method: "post",
+      path: "/{slug}/service-requests/{id}/comments",
+      tags,
+      security,
       summary: "Add an internal note or a resident-visible message",
       request: { params: idParam, body: body(staffCommentSchema) },
       responses: { 201: json(okSchema, "Comment added"), ...errorResponses },
@@ -185,17 +282,30 @@ export function staffRoutes(deps: AppDeps) {
     async (c) => {
       assertCan(c, "service_requests.comment");
       const { staff, userId, meta } = ctx(c);
-      await addStaffComment(deps, staff, userId, c.req.valid("param").id, c.req.valid("json"), meta);
+      await addStaffComment(
+        deps,
+        staff,
+        userId,
+        c.req.valid("param").id,
+        c.req.valid("json"),
+        meta,
+      );
       return c.json(ok, 201);
     },
   );
 
   app.openapi(
     createRoute({
-      method: "get", path: "/{slug}/notifications", tags, security,
+      method: "get",
+      path: "/{slug}/notifications",
+      tags,
+      security,
       summary: "The caller's in-app notifications",
       request: { params: slugParam },
-      responses: { 200: json(z.object({ items: z.array(notificationSchema) }), "Notifications"), ...errorResponses },
+      responses: {
+        200: json(z.object({ items: z.array(notificationSchema) }), "Notifications"),
+        ...errorResponses,
+      },
     }),
     async (c) => {
       const { userId } = ctx(c);
@@ -203,15 +313,22 @@ export function staffRoutes(deps: AppDeps) {
         tx
           .select()
           .from(notifications)
-          .where(and(eq(notifications.recipientUserId, userId), eq(notifications.channel, "in_app")))
+          .where(
+            and(eq(notifications.recipientUserId, userId), eq(notifications.channel, "in_app")),
+          )
           .orderBy(desc(notifications.createdAt))
           .limit(30),
       );
       return c.json(
         {
           items: rows.map((n) => ({
-            id: n.id, subject: n.subject, body: n.body, entityType: n.entityType, entityId: n.entityId,
-            createdAt: n.createdAt.toISOString(), readAt: n.readAt?.toISOString() ?? null,
+            id: n.id,
+            subject: n.subject,
+            body: n.body,
+            entityType: n.entityType,
+            entityId: n.entityId,
+            createdAt: n.createdAt.toISOString(),
+            readAt: n.readAt?.toISOString() ?? null,
           })),
         },
         200,
@@ -221,7 +338,10 @@ export function staffRoutes(deps: AppDeps) {
 
   app.openapi(
     createRoute({
-      method: "post", path: "/{slug}/notifications/read", tags, security,
+      method: "post",
+      path: "/{slug}/notifications/read",
+      tags,
+      security,
       summary: "Mark one or all of the caller's notifications as read",
       request: { params: slugParam, body: body(z.object({ id: z.uuid().optional() })) },
       responses: { 200: json(okSchema, "Marked read"), ...errorResponses },
@@ -250,11 +370,17 @@ export function staffRoutes(deps: AppDeps) {
 
   app.openapi(
     createRoute({
-      method: "get", path: "/{slug}/audit-events", tags, security,
+      method: "get",
+      path: "/{slug}/audit-events",
+      tags,
+      security,
       summary: "Audit log for the municipality",
       request: { params: slugParam, query: paginationQuerySchema },
       responses: {
-        200: json(z.object({ items: z.array(auditEventSchema), pagination: paginationSchema }), "Audit events"),
+        200: json(
+          z.object({ items: z.array(auditEventSchema), pagination: paginationSchema }),
+          "Audit events",
+        ),
         ...errorResponses,
       },
     }),
@@ -265,8 +391,13 @@ export function staffRoutes(deps: AppDeps) {
         const [total] = await tx.select({ value: count() }).from(auditEvents);
         const rows = await tx
           .select({
-            id: auditEvents.id, action: auditEvents.action, actorKind: auditEvents.actorKind, actorName: users.name,
-            entityType: auditEvents.entityType, entityId: auditEvents.entityId, metadata: auditEvents.metadata,
+            id: auditEvents.id,
+            action: auditEvents.action,
+            actorKind: auditEvents.actorKind,
+            actorName: users.name,
+            entityType: auditEvents.entityType,
+            entityId: auditEvents.entityId,
+            metadata: auditEvents.metadata,
             createdAt: auditEvents.createdAt,
           })
           .from(auditEvents)
