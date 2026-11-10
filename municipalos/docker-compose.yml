@@ -1,0 +1,12 @@
+# Local development database. PostGIS image is used so the extension is available
+# when geographic queries are introduced; the current schema does not require it.
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    ports: ["5432:5432"]
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
