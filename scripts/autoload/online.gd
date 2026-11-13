@@ -57,6 +57,7 @@ func refresh() -> void:
 func _get_wall(column: String, store: Callable) -> void:
 	var req := HTTPRequest.new()
 	req.timeout = 12.0
+	req.accept_gzip = false # browsers already decompress; double-decoding fails on web
 	add_child(req)
 	_busy += 1
 	req.request_completed.connect(func(result, code, _h, body):
@@ -70,6 +71,8 @@ func _get_wall(column: String, store: Callable) -> void:
 			error = ""
 		else:
 			error = "Couldn't reach the walls (offline?)"
+			if not Game.dev_args().is_empty():
+				print("ONLINE wall read failed result=%d code=%d bytes=%d" % [result, code, body.size()])
 		if _busy == 0:
 			walls_updated.emit())
 	var q := "%s/rest/v1/scores?select=%s&order=%s.desc,created_at.asc&limit=%d" % [url, FIELDS, column, WALL_SIZE]
@@ -116,6 +119,7 @@ func submit(run: Dictionary) -> void:
 	}
 	var req := HTTPRequest.new()
 	req.timeout = 12.0
+	req.accept_gzip = false
 	add_child(req)
 	req.request_completed.connect(func(result, code, _h, _body):
 		req.queue_free()
