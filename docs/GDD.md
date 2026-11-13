@@ -30,6 +30,19 @@ Ski downhill → dodge, jump, trick, collect → build a combo → bank it → m
 | Air | 1.0× | 1.22× airtime |
 | Trick speed | 1.0× | 1.15× |
 
+### Unlockable riders
+| | 4X9 (Skier) | RIVER (Snowboarder) |
+|---|---|---|
+| Look | Oversized helmet, giant goggles, huge puffy jacket, baggy pants; skis on actual 2×4 planks | Van-life drifter: long hair, turquoise goggles, sleeveless basketball jersey, tight flared bell-bottoms, purple board |
+| Unlock | Score **60,000** in one run on skis | Score **60,000** in one run on a snowboard |
+| Turning | 2.7 rad/s (a sofa) | 3.05 (Juniper 2.9) |
+| Top speed | 1.07× | 1.07× (Juniper 1.04×) |
+| Powder | 0.85× | 1.12× (Juniper 1.08×) |
+| Ice | 0.6 turn | 0.48 (Juniper 0.4) |
+| Air / tricks | 0.9× / 0.88× | 1.27× / 1.2× (Juniper 1.22× / 1.15×) |
+
+RIVER is a small step above Juniper in every stat. Best scores are tracked separately for skis and snowboards. Jersey, jacket and helmet colors follow the selected outfit. `tools/rider_preview.tscn` shows every pose of every rider.
+
 ## 4. Movement
 - Heading angle from straight downhill, ±88°. Target speed = max × cos(heading)^1.3, so turning across the slope bleeds speed and full sideways stops you (SkiFree-style control).
 - **Follow-finger** control: rider steers toward where you hold. Finger above the rider = brake; far below = tuck.

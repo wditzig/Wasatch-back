@@ -25,6 +25,8 @@ var runs := 0
 var seen_tutorial := false
 var last_initials := "AAA"
 var acquired_count := 0
+var best_ski_score := 0
+var best_board_score := 0
 
 var _shot_dir := ""
 var _shot_every := 2.0
@@ -43,6 +45,8 @@ func _ready() -> void:
 			_shot_dir = a.substr(8)
 		elif a.begins_with("--shot-every="):
 			_shot_every = float(a.substr(13))
+		elif a.begins_with("--rider="):
+			rider = a.substr(8) # dev: ride any rider, locked or not (screenshots/tests)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_process(_shot_dir != "")
 
@@ -103,11 +107,13 @@ func load_game() -> void:
 	seen_tutorial = cf.get_value("profile", "seen_tutorial", false)
 	last_initials = cf.get_value("profile", "last_initials", "AAA")
 	acquired_count = cf.get_value("profile", "acquired_count", 0)
+	best_ski_score = cf.get_value("profile", "best_ski_score", 0)
+	best_board_score = cf.get_value("profile", "best_board_score", 0)
 	high_scores = cf.get_value("scores", "list", [])
 	var s: Dictionary = cf.get_value("settings", "values", {})
 	for k in s.keys():
 		settings[k] = s[k]
-	if not Riders.RIDERS.has(rider):
+	if not Riders.RIDERS.has(rider) or not is_rider_unlocked(rider):
 		rider = "skier"
 	if not is_unlocked(outfit):
 		outfit = "classic"
@@ -123,6 +129,8 @@ func save_game() -> void:
 	cf.set_value("profile", "seen_tutorial", seen_tutorial)
 	cf.set_value("profile", "last_initials", last_initials)
 	cf.set_value("profile", "acquired_count", acquired_count)
+	cf.set_value("profile", "best_ski_score", best_ski_score)
+	cf.set_value("profile", "best_board_score", best_board_score)
 	cf.set_value("scores", "list", high_scores)
 	cf.set_value("settings", "values", settings)
 	cf.save(SAVE_PATH)
@@ -136,6 +144,8 @@ func reset_progress() -> void:
 	high_scores = []
 	best_distance = 0.0
 	best_score = 0
+	best_ski_score = 0
+	best_board_score = 0
 	total_tokens = 0
 	runs = 0
 	rider = "skier"
@@ -143,6 +153,17 @@ func reset_progress() -> void:
 	save_game()
 
 # ---------------------------------------------------------------- unlocks
+func is_rider_unlocked(rider_id: String) -> bool:
+	var r: Dictionary = Riders.RIDERS.get(rider_id, {})
+	var q: Array = r.get("req", ["none", 0])
+	match q[0]:
+		"ski_score": return best_ski_score >= int(q[1])
+		"board_score": return best_board_score >= int(q[1])
+	return true
+
+func rider_kind() -> String:
+	return String(Riders.RIDERS[rider].get("kind", "ski"))
+
 func is_unlocked(outfit_id: String) -> bool:
 	var o := Riders.outfit(outfit_id)
 	var r: Array = o["req"]
@@ -163,6 +184,13 @@ func record_run(score: int, distance_m: float, tokens: int, cause: String, phase
 	var before := {}
 	for o in Riders.OUTFITS:
 		before[o["id"]] = is_unlocked(o["id"])
+	var riders_before := {}
+	for rid in Riders.RIDERS.keys():
+		riders_before[rid] = is_rider_unlocked(rid)
+	if rider_kind() == "board":
+		best_board_score = maxi(best_board_score, score)
+	else:
+		best_ski_score = maxi(best_ski_score, score)
 	runs += 1
 	total_tokens += tokens
 	var new_best := score > best_score
@@ -188,6 +216,9 @@ func record_run(score: int, distance_m: float, tokens: int, cause: String, phase
 	for o in Riders.OUTFITS:
 		if not before[o["id"]] and is_unlocked(o["id"]):
 			unlocked.append(o["name"])
+	for rid in Riders.RIDERS.keys():
+		if not riders_before[rid] and is_rider_unlocked(rid):
+			unlocked.append("RIDER %s!" % Riders.RIDERS[rid]["name"])
 	save_game()
 	return {"rank": rank, "new_best": new_best, "unlocked": unlocked, "entry": entry if rank >= 0 else {}}
 

@@ -41,7 +41,8 @@ static func make_card(data: Dictionary) -> Image:
 	# title
 	_blit(img, Art.text_tex("WASATCH BACK", Color.WHITE).get_image(), Vector2i(-1, 10), 2)
 	# rider (+ Chip if he won)
-	var prefix := "ski" if data.get("rider", "skier") == "skier" else "board"
+	var Riders = load("res://scripts/data/riders.gd")
+	var prefix: String = Riders.RIDERS.get(data.get("rider", "skier"), Riders.RIDERS["skier"])["sprite"]
 	var outfit: Dictionary = data.get("outfit", {})
 	var acquired: bool = data.get("cause", "") == "ACQUIRED!"
 	var rider: Image = Art.tex(prefix + ("_crash" if acquired else "_air"), outfit).get_image()

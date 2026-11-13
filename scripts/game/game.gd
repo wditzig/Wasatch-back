@@ -143,7 +143,7 @@ func _build() -> void:
 	player = PlayerScript.new()
 	player.setup(Game.rider, Game.current_outfit())
 	world.add_child(player)
-	tracks.double_line = Game.rider == "skier"
+	tracks.double_line = Game.rider_kind() == "ski"
 	developer = DeveloperScript.new()
 	world.add_child(developer)
 	gondola = GondolaScript.new()
@@ -499,7 +499,7 @@ func _contact(o) -> void:
 		"slow":
 			if not air:
 				player.powder_t = 0.15
-				if player.rider_id == "snowboarder" and player.speed > 150.0 and not o.passed:
+				if Game.rider_kind() == "board" and player.speed > 150.0 and not o.passed:
 					o.passed = true
 					score.add_style(30)
 					_popup("POWDER SURF!", player.position + Vector2(0, -44), Color8(80, 200, 240))

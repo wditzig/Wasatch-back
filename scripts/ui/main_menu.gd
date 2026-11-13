@@ -15,6 +15,7 @@ var panels := {}
 var preview: TextureRect
 var outfit_info: Label
 var rider_buttons := {}
+var _viewing := "" # rider shown in Rider & Gear (may be locked)
 var outfit_buttons := {}
 var _preview_t := 0.0
 var _preview_pose := 0
@@ -132,6 +133,7 @@ func _open(id: String) -> void:
 		panels[k]["root"].visible = k == id
 	main_box.visible = id == ""
 	if id == "rider":
+		_viewing = Game.rider
 		_refresh_rider()
 
 func _close() -> void:
@@ -158,22 +160,24 @@ func _build_rider() -> Dictionary:
 	var ov := UI.overlay(self, 336)
 	var vb: VBoxContainer = ov["box"]
 	vb.add_child(UI.pixel_text("RIDER & GEAR", 2.0))
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 8)
+	var hb := GridContainer.new()
+	hb.columns = 2
+	hb.add_theme_constant_override("h_separation", 8)
+	hb.add_theme_constant_override("v_separation", 6)
 	vb.add_child(hb)
 	for rid in Riders.RIDERS.keys():
-		var r: Dictionary = Riders.RIDERS[rid]
 		var b := Button.new()
 		b.toggle_mode = true
-		b.text = "%s\n%s" % [r["name"], r["title"]]
-		b.custom_minimum_size = Vector2(0, 54)
+		b.custom_minimum_size = Vector2(0, 40)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.add_theme_font_size_override("font_size", 15)
+		b.add_theme_font_size_override("font_size", 13)
 		var id: String = rid
 		b.pressed.connect(func():
 			Sfx.play("click")
-			Game.rider = id
-			Game.save_game()
+			_viewing = id
+			if Game.is_rider_unlocked(id):
+				Game.rider = id
+				Game.save_game()
 			_refresh_rider())
 		hb.add_child(b)
 		rider_buttons[rid] = b
@@ -181,7 +185,7 @@ func _build_rider() -> Dictionary:
 	mid.add_theme_constant_override("separation", 10)
 	vb.add_child(mid)
 	preview = TextureRect.new()
-	preview.custom_minimum_size = Vector2(96, 112)
+	preview.custom_minimum_size = Vector2(84, 96)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -205,7 +209,7 @@ func _build_rider() -> Dictionary:
 	vb.add_child(grid)
 	for o in Riders.OUTFITS:
 		var ob := Button.new()
-		ob.custom_minimum_size = Vector2(70, 52)
+		ob.custom_minimum_size = Vector2(70, 42)
 		ob.toggle_mode = true
 		ob.expand_icon = true
 		ob.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -220,19 +224,36 @@ func _build_rider() -> Dictionary:
 		grid.add_child(ob)
 		outfit_buttons[oid] = ob
 	outfit_info = UI.label("", 13, Color.WHITE)
-	outfit_info.custom_minimum_size = Vector2(0, 36)
+	outfit_info.custom_minimum_size = Vector2(0, 30)
 	vb.add_child(outfit_info)
-	vb.add_child(UI.button("RIDE!", _play, 52))
-	vb.add_child(UI.button("BACK", _close, 44))
+	var nav := HBoxContainer.new()
+	nav.add_theme_constant_override("separation", 8)
+	var back_b := UI.button("BACK", _close, 46)
+	var ride_b := UI.button("RIDE!", _play, 46)
+	back_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ride_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ride_b.size_flags_stretch_ratio = 1.6
+	nav.add_child(back_b)
+	nav.add_child(ride_b)
+	vb.add_child(nav)
 	return ov
 
 func _refresh_rider(focus_outfit := "") -> void:
+	if _viewing == "":
+		_viewing = Game.rider
 	for rid in rider_buttons.keys():
-		rider_buttons[rid].button_pressed = rid == Game.rider
-	var r: Dictionary = Riders.RIDERS[Game.rider]
+		var rr: Dictionary = Riders.RIDERS[rid]
+		var open := Game.is_rider_unlocked(rid)
+		var b: Button = rider_buttons[rid]
+		b.button_pressed = rid == _viewing
+		b.text = "%s\n%s" % [rr["name"], rr["title"]] if open else "%s\n- LOCKED -" % rr["name"]
+		b.modulate = Color.WHITE if open else Color(0.6, 0.6, 0.7)
+	var r: Dictionary = Riders.RIDERS[_viewing]
 	var stats: VBoxContainer = panels["rider"]["stats"]
 	for c in stats.get_children():
 		c.queue_free()
+	if not Game.is_rider_unlocked(_viewing):
+		stats.add_child(UI.label("LOCKED: " + Riders.rider_req_text(r), 12, UI.ORANGE, HORIZONTAL_ALIGNMENT_LEFT))
 	stats.add_child(UI.label(r["desc"], 12, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT))
 	for k in r["stats"].keys():
 		var v: int = r["stats"][k]
@@ -256,9 +277,12 @@ func _refresh_rider(focus_outfit := "") -> void:
 	_update_preview()
 
 func _update_preview() -> void:
-	var r: Dictionary = Riders.RIDERS[Game.rider]
+	var id := _viewing if _viewing != "" else Game.rider
+	var r: Dictionary = Riders.RIDERS[id]
 	var poses := ["down", "diag", "side", "air"]
 	preview.texture = Art.tex(String(r["sprite"]) + "_" + poses[_preview_pose], Game.current_outfit())
+	# locked riders are shown (dimmed) so you know what you're chasing
+	preview.modulate = Color.WHITE if Game.is_rider_unlocked(id) else Color(0.62, 0.62, 0.7)
 
 # ---------------------------------------------------------------- scores
 func _build_scores() -> Dictionary:
@@ -273,7 +297,7 @@ func _build_scores() -> Dictionary:
 	grid.add_theme_constant_override("v_separation", 2)
 	for i in Game.high_scores.size():
 		var e: Dictionary = Game.high_scores[i]
-		var rider_tag := "SKI" if e.get("rider", "skier") == "skier" else "BRD"
+		var rider_tag: String = Riders.RIDERS.get(e.get("rider", "skier"), Riders.RIDERS["skier"])["name"]
 		var col := UI.GOLD if i == 0 else Color.WHITE
 		var cells := ["%d." % (i + 1), String(e.get("initials", "---")), _fmt(int(e["score"])), "%dm" % int(e["distance"]), rider_tag]
 		var aligns := [HORIZONTAL_ALIGNMENT_RIGHT, HORIZONTAL_ALIGNMENT_LEFT, HORIZONTAL_ALIGNMENT_RIGHT, HORIZONTAL_ALIGNMENT_RIGHT, HORIZONTAL_ALIGNMENT_LEFT]

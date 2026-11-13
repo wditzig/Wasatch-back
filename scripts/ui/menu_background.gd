@@ -13,7 +13,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_pine = Art.tex("pine_big")
 	_pine_s = Art.tex("pine_small")
-	var prefix := "ski" if Game.rider == "skier" else "board"
+	var prefix: String = load("res://scripts/data/riders.gd").RIDERS[Game.rider]["sprite"]
 	for p in ["side", "diag", "down"]:
 		_rider_tex.append(Art.tex(prefix + "_" + p, Game.current_outfit()))
 	var snow := CPUParticles2D.new()
