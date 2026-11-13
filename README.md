@@ -99,6 +99,10 @@ docs/                     Game design doc, architecture, satire/fact policy
 tools/smoke_test.sh       Headless autoplay test
 ```
 
+## Global walls
+
+The **HIGH SCORES** and **LONGEST DISTANCE** walls are shared by everyone who plays. They're backed by a free Supabase project; see [`online/README.md`](online/README.md) for the 5-minute setup. Until it's configured, the game is fully offline and scores are kept per device.
+
 ## How to Play & sharing
 
 - **How to Play**: a 4-page illustrated guide (steer, jumps & tricks, the mountain, combos & Chip). It opens automatically before your very first run, and is always available from the title screen and the pause menu.

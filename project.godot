@@ -18,6 +18,7 @@ config/icon="res://icon.svg"
 Game="*res://scripts/autoload/game_state.gd"
 Art="*res://scripts/autoload/art.gd"
 Sfx="*res://scripts/autoload/audio.gd"
+Online="*res://scripts/autoload/online.gd"
 
 [display]
 

@@ -735,7 +735,13 @@ func _game_over(title: String, cause: String) -> void:
 	var rec: Dictionary = Game.record_run(score.score, distance_m, tokens, title, phase)
 	var share_data := {"score": score.score, "distance": int(distance_m), "rider": Game.rider,
 		"outfit": Game.current_outfit(), "cause": title, "phase": phase}
-	hud.show_game_over(title, cause, score.score, distance_m, tokens, rec, Game.best_score, share_data)
+	var final_score: int = score.score
+	var final_m := int(distance_m)
+	var post := func():
+		Online.submit({"initials": Game.last_initials, "score": final_score, "distance": final_m,
+			"rider": Game.rider, "phase": phase, "cause": title})
+	hud.show_game_over(title, cause, final_score, distance_m, tokens, rec, Game.best_score, share_data,
+		Online.qualifies(final_score, final_m), post)
 	if _autoplay:
 		# the bot "types" its initials, shows the results, then rides again
 		get_tree().create_timer(0.8).timeout.connect(func():

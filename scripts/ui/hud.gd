@@ -360,9 +360,20 @@ var _initials_done: Callable
 func is_entering_initials() -> bool:
 	return _entering
 
-func show_game_over(title: String, cause: String, score: int, meters: float, tokens: int, rec: Dictionary, best: int, share_data: Dictionary = {}) -> void:
-	var results := func(): _show_results(title, cause, score, meters, tokens, rec, best, share_data)
-	if int(rec.get("rank", -1)) >= 0 and not rec.get("entry", {}).is_empty():
+## on_wall: the run would make a global wall. on_final runs once initials
+## (if any) are settled - the game posts the run to the walls there.
+func show_game_over(title: String, cause: String, score: int, meters: float, tokens: int, rec: Dictionary, best: int,
+		share_data: Dictionary = {}, on_wall := false, on_final: Callable = Callable()) -> void:
+	var results := func():
+		_show_results(title, cause, score, meters, tokens, rec, best, share_data)
+		if on_final.is_valid():
+			on_final.call()
+	var local_top: bool = int(rec.get("rank", -1)) >= 0 and not rec.get("entry", {}).is_empty()
+	if local_top or on_wall:
+		if not local_top:
+			rec = rec.duplicate()
+			rec["entry"] = {} # wall-only run: initials are still remembered
+			rec["wall_only"] = true
 		_show_initials(rec, score, results)
 	else:
 		results.call()
@@ -395,8 +406,12 @@ func _show_initials(rec: Dictionary, score: int, done: Callable) -> void:
 		_initials[i] = c if CHARSET.contains(c) else "A"
 	_slot = 0
 	var vb := _clear_over()
-	vb.add_child(UI.pixel_text("TOP 10!", 4.0, UI.GOLD))
-	vb.add_child(UI.label("HIGH SCORE #%d   -   %s" % [int(rec["rank"]) + 1, _fmt(score)], 15, Color.WHITE))
+	if rec.get("wall_only", false):
+		vb.add_child(UI.pixel_text("THE WALL!", 4.0, UI.GOLD))
+		vb.add_child(UI.label("PUBLIC WALL  -  %s" % _fmt(score), 15, Color.WHITE))
+	else:
+		vb.add_child(UI.pixel_text("TOP 10!", 4.0, UI.GOLD))
+		vb.add_child(UI.label("HIGH SCORE #%d   -   %s" % [int(rec["rank"]) + 1, _fmt(score)], 15, Color.WHITE))
 	vb.add_child(UI.label("ENTER YOUR INITIALS", 13, UI.ICE))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -521,6 +536,16 @@ func _show_results(title: String, cause: String, score: int, meters: float, toke
 	elif int(rec.get("rank", -1)) >= 0:
 		var e: Dictionary = rec.get("entry", {})
 		vb.add_child(UI.label("HIGH SCORE #%d  -  %s" % [int(rec["rank"]) + 1, String(e.get("initials", ""))], 15, UI.GOLD))
+	if Online.can_submit():
+		var sp := Online.place_on("score", score)
+		var dp := Online.place_on("distance", int(meters))
+		var bits: Array[String] = []
+		if sp > 0:
+			bits.append("#%d HIGH SCORE" % sp)
+		if dp > 0:
+			bits.append("#%d LONGEST RUN" % dp)
+		if not bits.is_empty():
+			vb.add_child(UI.label("ON THE WALL: " + "  &  ".join(bits), 14, UI.GREEN))
 	for u in rec.get("unlocked", []):
 		vb.add_child(UI.label("UNLOCKED: %s" % u, 14, UI.GREEN))
 	var again := UI.button("RIDE AGAIN", func(): restart_requested.emit(), 58)

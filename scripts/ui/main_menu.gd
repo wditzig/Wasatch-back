@@ -38,6 +38,9 @@ func _ready() -> void:
 		elif a == "--autoplay":
 			Game.seen_tutorial = true
 			get_tree().create_timer(1.0).timeout.connect(_play)
+		elif a.begins_with("--scores-tab="):
+			_scores_tab = a.substr(13)
+			_fill_scores()
 		elif a == "--howto":
 			_how_to_play(false)
 
@@ -135,6 +138,9 @@ func _open(id: String) -> void:
 	if id == "rider":
 		_viewing = Game.rider
 		_refresh_rider()
+	if id == "scores":
+		Online.refresh()
+		_fill_scores()
 
 func _close() -> void:
 	_open("")
@@ -285,21 +291,71 @@ func _update_preview() -> void:
 	preview.modulate = Color.WHITE if Game.is_rider_unlocked(id) else Color(0.62, 0.62, 0.7)
 
 # ---------------------------------------------------------------- scores
+var _scores_tab := "mine"
+var _scores_body: VBoxContainer
+var _scores_tabs := {}
+
 func _build_scores() -> Dictionary:
-	var ov := UI.overlay(self, 330)
+	var ov := UI.overlay(self, 336)
 	var vb: VBoxContainer = ov["box"]
-	vb.add_child(UI.pixel_text("HIGH SCORES", 2.0))
-	if Game.high_scores.is_empty():
-		vb.add_child(UI.label("No runs yet.\nThe mountain is waiting.", 14, UI.ICE))
+	vb.add_child(UI.pixel_text("SCORES", 2.5))
+	if Online.enabled():
+		var tabs := HBoxContainer.new()
+		tabs.add_theme_constant_override("separation", 6)
+		var grp := ButtonGroup.new()
+		for t in [["mine", "MINE"], ["score", "HIGH SCORES"], ["distance", "LONGEST"]]:
+			var b := Button.new()
+			b.text = t[1]
+			b.toggle_mode = true
+			b.button_group = grp
+			b.button_pressed = t[0] == _scores_tab
+			b.custom_minimum_size = Vector2(0, 40)
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			b.add_theme_font_size_override("font_size", 12)
+			var id: String = t[0]
+			b.pressed.connect(func():
+				Sfx.play("click")
+				_scores_tab = id
+				if id != "mine":
+					Online.refresh()
+				_fill_scores())
+			tabs.add_child(b)
+			_scores_tabs[t[0]] = b
+		vb.add_child(tabs)
+		Online.walls_updated.connect(_fill_scores)
+	_scores_body = VBoxContainer.new()
+	_scores_body.add_theme_constant_override("separation", 8)
+	_scores_body.custom_minimum_size = Vector2(0, 300)
+	vb.add_child(_scores_body)
+	vb.add_child(UI.button("BACK", _close, 44))
+	_fill_scores()
+	return ov
+
+func _fill_scores() -> void:
+	if _scores_body == null:
+		return
+	for c in _scores_body.get_children():
+		c.queue_free()
+	for k in _scores_tabs.keys():
+		_scores_tabs[k].set_pressed_no_signal(k == _scores_tab)
+	if _scores_tab == "mine":
+		_fill_mine()
+	else:
+		_fill_wall(_scores_tab)
+
+func _score_grid(rows: Array, cols: Array) -> GridContainer:
 	var grid := GridContainer.new()
 	grid.columns = 5
-	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 2)
-	for i in Game.high_scores.size():
-		var e: Dictionary = Game.high_scores[i]
+	for i in rows.size():
+		var e: Dictionary = rows[i]
 		var rider_tag: String = Riders.RIDERS.get(e.get("rider", "skier"), Riders.RIDERS["skier"])["name"]
 		var col := UI.GOLD if i == 0 else Color.WHITE
-		var cells := ["%d." % (i + 1), String(e.get("initials", "---")), _fmt(int(e["score"])), "%dm" % int(e["distance"]), rider_tag]
+		var cells := ["%d." % (i + 1), String(e.get("initials", "---"))]
+		for c in cols:
+			cells.append(_fmt(int(e["score"])) if c == "score" else "%dm" % int(e["distance"]))
+		cells.append(rider_tag)
 		var aligns := [HORIZONTAL_ALIGNMENT_RIGHT, HORIZONTAL_ALIGNMENT_LEFT, HORIZONTAL_ALIGNMENT_RIGHT, HORIZONTAL_ALIGNMENT_RIGHT, HORIZONTAL_ALIGNMENT_LEFT]
 		for k in cells.size():
 			var l := UI.label(cells[k], 15 if k == 1 else 14, col, aligns[k])
@@ -307,19 +363,36 @@ func _build_scores() -> Dictionary:
 			if k == 2:
 				l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			grid.add_child(l)
-	vb.add_child(grid)
-	vb.add_child(HSeparator.new())
-	vb.add_child(UI.label("Runs: %d   Passes collected: %d\nBest distance: %d m" % [Game.runs, Game.total_tokens, int(Game.best_distance)], 12, UI.ICE))
-	if not Game.high_scores.is_empty():
-		var status := UI.label("", 12, UI.GREEN)
-		var best: Dictionary = Game.high_scores[0]
-		var share_best := func():
-			status.text = Share.share({"score": best["score"], "distance": best["distance"], "rider": best.get("rider", "skier"),
-				"outfit": Game.current_outfit(), "cause": best.get("cause", ""), "phase": best.get("phase", "")})
-		vb.add_child(UI.button("SHARE MY BEST", share_best, 46))
-		vb.add_child(status)
-	vb.add_child(UI.button("BACK", _close, 44))
-	return ov
+	return grid
+
+func _fill_mine() -> void:
+	if Game.high_scores.is_empty():
+		_scores_body.add_child(UI.label("No runs yet.\nThe mountain is waiting.", 14, UI.ICE))
+		return
+	_scores_body.add_child(_score_grid(Game.high_scores, ["score", "distance"]))
+	_scores_body.add_child(HSeparator.new())
+	_scores_body.add_child(UI.label("Runs: %d   Passes collected: %d\nBest distance: %d m" % [Game.runs, Game.total_tokens, int(Game.best_distance)], 12, UI.ICE))
+	var status := UI.label("", 12, UI.GREEN)
+	var best: Dictionary = Game.high_scores[0]
+	var share_best := func():
+		status.text = Share.share({"score": best["score"], "distance": best["distance"], "rider": best.get("rider", "skier"),
+			"outfit": Game.current_outfit(), "cause": best.get("cause", ""), "phase": best.get("phase", "")})
+	_scores_body.add_child(UI.button("SHARE MY BEST", share_best, 44))
+	_scores_body.add_child(status)
+
+func _fill_wall(field: String) -> void:
+	var title := "HIGH SCORE WALL" if field == "score" else "LONGEST DISTANCE WALL"
+	_scores_body.add_child(UI.label(title, 14, UI.GOLD))
+	var wall: Array = Online.score_wall if field == "score" else Online.distance_wall
+	if wall.is_empty():
+		var msg := "Loading the wall..." if Online.error == "" else Online.error
+		if Online.loaded and Online.error == "":
+			msg = "Nobody's on the wall yet.\nGo put your initials up there."
+		_scores_body.add_child(UI.label(msg, 13, UI.ICE))
+		return
+	var cols := ["score", "distance"] if field == "score" else ["distance", "score"]
+	_scores_body.add_child(_score_grid(wall, cols))
+	_scores_body.add_child(UI.label("Everyone who plays WASATCH BACK, everywhere.", 11, UI.ICE))
 
 func _fmt(n: int) -> String:
 	var s := str(n)

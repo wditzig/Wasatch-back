@@ -223,10 +223,14 @@ func record_run(score: int, distance_m: float, tokens: int, cause: String, phase
 	return {"rank": rank, "new_best": new_best, "unlocked": unlocked, "entry": entry if rank >= 0 else {}}
 
 ## Stores initials on a high-score entry (and remembers them for next time).
+## Initials that won't be shown on the public walls (mirrors the database rule).
+const BLOCKED_INITIALS := ["ASS", "FUK", "FUC", "FCK", "FKU", "SEX", "KKK", "NIG", "NGR", "FAG", "CUM", "DIK",
+	"DIC", "TIT", "XXX", "SHT", "CNT", "KYS", "NAZ", "JIZ", "POO", "PEE", "WTF", "STD", "HOE"]
+
 func set_initials(entry: Dictionary, initials: String) -> void:
 	initials = initials.strip_edges().to_upper().substr(0, 3)
-	if initials == "":
-		initials = "???"
+	if initials == "" or BLOCKED_INITIALS.has(initials):
+		initials = "---"
 	entry["initials"] = initials
 	last_initials = initials
 	save_game()
