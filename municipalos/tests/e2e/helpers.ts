@@ -1,8 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
 
-export const SITE = "http://localhost:3000";
-export const STAFF = "http://localhost:3001";
+// Override to run the suite against servers on other ports (e.g. a second local stack).
+export const SITE = process.env.E2E_SITE_URL ?? "http://localhost:3000";
+export const STAFF = process.env.E2E_STAFF_URL ?? "http://localhost:3001";
 export const PASSWORD = "municipalos-dev-password";
 
 /**

@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ScrollText } from "lucide-react";
-import { Card, EmptyState, PageHeader, Table, Td, Th, formatDateTime } from "@municipalos/ui";
+import { Download, ScrollText } from "lucide-react";
+import {
+  Card,
+  EmptyState,
+  PageHeader,
+  Table,
+  Td,
+  Th,
+  buttonClass,
+  formatDateTime,
+} from "@municipalos/ui";
 import { Pagination } from "@/components/pagination";
 import { ApiError, api } from "@/lib/api";
 import { base, getStaffMe } from "@/lib/staff";
@@ -49,6 +58,12 @@ export default async function AuditPage({
       <PageHeader
         title="Audit log"
         description="Append-only record of sign-in denials and every change to municipal records."
+        actions={
+          <a href={`/${slug}/audit/export`} download className={buttonClass("secondary")}>
+            <Download className="size-4" aria-hidden="true" />
+            Export CSV
+          </a>
+        }
       />
       <Card>
         {data.items.length === 0 ? (

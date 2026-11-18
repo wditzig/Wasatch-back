@@ -1,13 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, Lock } from "lucide-react";
-import { Alert, Badge, Card, CardHeader, StatusBadge, formatDateTime } from "@municipalos/ui";
+import { ArrowLeft, Download, ExternalLink, Lock } from "lucide-react";
+import {
+  Alert,
+  Badge,
+  Card,
+  CardHeader,
+  StatusBadge,
+  buttonClass,
+  formatDateTime,
+} from "@municipalos/ui";
 import { serviceRequestStatusLabel } from "@municipalos/workflows";
 import { ApiError, api } from "@/lib/api";
 import { base, getStaffMe } from "@/lib/staff";
 import type { AssignableStaff, RequestDetail, RequestEvent } from "@/lib/types";
-import { AssignForm, CommentForm, StatusForm } from "./action-forms";
+import { PlaceHoldForm, ReleaseHoldForm } from "../../admin/forms";
+import type { LegalHold } from "../../admin/types";
+import { AssignForm, CommentForm, PhotoForm, StatusForm } from "./action-forms";
 
 type Props = { params: Promise<{ city: string; id: string }> };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -57,6 +67,14 @@ function describe(e: RequestEvent): { title: string; by: string } {
       return { title: "Message to resident", by: who };
     case "resident_message":
       return { title: "Message from resident", by: who };
+    case "photo_added":
+      return { title: "Photo added", by: who };
+    case "legal_hold_placed":
+      return { title: "Legal hold placed", by: who };
+    case "legal_hold_released":
+      return { title: "Legal hold released", by: who };
+    case "dispositioned":
+      return { title: "Record dispositioned", by: who };
     default:
       return { title: e.type, by: who };
   }
@@ -87,7 +105,12 @@ export default async function RequestDetailPage({ params }: Props) {
         )
       ).items
     : [];
-  const hasActions = request.availableTransitions.length > 0 || canAssign || canComment;
+  const canManageRecords = me.permissions.includes("records.manage");
+  const holds = canManageRecords
+    ? (await api<{ items: LegalHold[] }>(`${base(slug)}/service-requests/${id}/holds`)).items
+    : [];
+  const hasActions =
+    request.availableTransitions.length > 0 || canAssign || canComment || canManageRecords;
   const { reporter } = request;
   const hasReporter = Boolean(reporter.name || reporter.email || reporter.phone);
 
@@ -106,8 +129,29 @@ export default async function RequestDetailPage({ params }: Props) {
           <span className="font-normal text-ink-muted">· {request.reference}</span>
         </h1>
         <StatusBadge status={request.status} />
+        {me.permissions.includes("records.export") ? (
+          <a
+            href={`/${slug}/requests/${request.id}/export`}
+            download
+            className={buttonClass("secondary", "sm", "ml-auto")}
+          >
+            <Download className="size-4" aria-hidden="true" />
+            Export record
+          </a>
+        ) : null}
       </div>
 
+      {request.onLegalHold ? (
+        <Alert tone="warning" title="This record is on legal hold." className="mb-6">
+          It must be preserved and cannot be dispositioned until every hold is released.
+        </Alert>
+      ) : null}
+      {request.dispositionedAt ? (
+        <Alert tone="info" title="This record has been dispositioned." className="mb-6">
+          The reporter&rsquo;s personal data was redacted under the retention schedule on{" "}
+          {formatDateTime(request.dispositionedAt, me.timezone)}.
+        </Alert>
+      ) : null}
       {request.possibleDuplicates.length > 0 ? (
         <Alert tone="warning" title="Possible duplicates" className="mb-6">
           <p>
@@ -185,6 +229,52 @@ export default async function RequestDetailPage({ params }: Props) {
                 <Row label="Closed">{formatDateTime(request.closedAt)}</Row>
               ) : null}
             </dl>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Photos"
+              description={
+                request.photos.length === 0
+                  ? "No photos have been added."
+                  : "Select a photo to open it full size."
+              }
+            />
+            {request.photos.length > 0 ? (
+              <ul className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3">
+                {request.photos.map((photo, i) => {
+                  const label = `Photo ${i + 1}: ${photo.kind === "completion" ? `added by ${photo.uploadedByName ?? "city staff"}` : "from the resident"}`;
+                  const src = `/${slug}/requests/${request.id}/photos/${photo.id}`;
+                  return (
+                    <li key={photo.id}>
+                      <a href={src} target="_blank" rel="noreferrer" className="block">
+                        {/* Plain <img>: an authenticated, per-request image that must not be cached or optimized. */}
+                        <img
+                          src={src}
+                          alt={label}
+                          width={photo.width}
+                          height={photo.height}
+                          loading="lazy"
+                          className="aspect-4/3 w-full rounded-lg border border-line object-cover"
+                        />
+                        <span className="sr-only"> (opens in a new tab)</span>
+                      </a>
+                      <p className="mt-1 text-xs text-ink-muted">
+                        {photo.kind === "completion"
+                          ? (photo.uploadedByName ?? "City staff")
+                          : "Resident"}{" "}
+                        · {formatDateTime(photo.createdAt)}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+            {request.canAddPhotos ? (
+              <div className="border-t border-line p-5">
+                <PhotoForm slug={slug} id={request.id} />
+              </div>
+            ) : null}
           </Card>
 
           <Card>
@@ -273,6 +363,43 @@ export default async function RequestDetailPage({ params }: Props) {
                   id={request.id}
                   hasReporterEmail={Boolean(reporter.email)}
                 />
+              </div>
+            </Card>
+          ) : null}
+          {canManageRecords ? (
+            <Card>
+              <CardHeader
+                title="Legal holds"
+                description="A hold preserves this record for a claim, audit or records request."
+              />
+              <div className="space-y-5 p-5">
+                {holds.length > 0 ? (
+                  <ul className="space-y-4">
+                    {holds.map((h) => (
+                      <li key={h.id} className="text-sm">
+                        <p className="flex flex-wrap items-center gap-2 font-medium text-ink">
+                          <Badge tone={h.releasedAt ? "neutral" : "amber"}>
+                            {h.releasedAt ? "Released" : "Active"}
+                          </Badge>
+                          {h.reason}
+                        </p>
+                        <p className="mt-1 text-xs text-ink-muted">
+                          Placed by {h.placedByName ?? "staff"} ·{" "}
+                          {formatDateTime(h.placedAt, me.timezone)}
+                          {h.releasedAt
+                            ? ` · Released by ${h.releasedByName ?? "staff"} · ${formatDateTime(h.releasedAt, me.timezone)}: ${h.releaseNote ?? ""}`
+                            : ""}
+                        </p>
+                        {!h.releasedAt ? (
+                          <ReleaseHoldForm slug={slug} requestId={request.id} hold={h} />
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {!request.dispositionedAt ? (
+                  <PlaceHoldForm slug={slug} requestId={request.id} />
+                ) : null}
               </div>
             </Card>
           ) : null}

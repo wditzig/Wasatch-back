@@ -40,13 +40,17 @@ import {
   siteSchema,
   slugParam,
   suggestionSchema,
+  uploadBody,
 } from "../schemas";
 import {
   addResidentMessage,
   createServiceRequest,
   getPublicRequest,
 } from "../services/service-requests";
+import { addResidentPhoto, getPublicPhoto } from "../services/attachments";
+import { photoResponse, readUploadedFile } from "../lib/upload";
 import { validationHook } from "../validation-hook";
+import { registerPublicContentRoutes } from "./content";
 
 const tags = ["Public"];
 const referenceParam = slugParam.extend({ reference: z.string().min(1).max(20) });
@@ -312,6 +316,66 @@ export function publicRoutes(deps: AppDeps, limiter: RateLimiter) {
       return c.json({ ok: true as const }, 201);
     },
   );
+
+  /* ── Photos ── */
+
+  app.use(
+    "/municipalities/:slug/service-requests/:reference/attachments",
+    rateLimit(limiter, "public-upload", limits.publicUpload),
+  );
+  app.openapi(
+    createRoute({
+      method: "post",
+      path: "/municipalities/{slug}/service-requests/{reference}/attachments",
+      tags,
+      summary: "Add a photo to an open request",
+      description:
+        "The image is re-encoded as JPEG and all metadata (including location) is removed. Up to 4 photos per request.",
+      request: { params: referenceParam, body: uploadBody },
+      responses: { 201: json(z.object({ id: z.string() }), "Photo stored"), ...errorResponses },
+    }),
+    async (c) => {
+      const { slug, reference } = c.req.param();
+      const parsed = referenceSchema.safeParse(reference);
+      if (!parsed.success) throw notFound("Request");
+      const m = await municipality(slug);
+      const file = await readUploadedFile(c);
+      const result = await addResidentPhoto(deps, m, parsed.data, file, {
+        ip: c.get("ip"),
+        requestId: c.get("requestId"),
+      });
+      return c.json(result, 201);
+    },
+  );
+
+  app.openAPIRegistry.registerPath({
+    method: "get",
+    path: "/v1/public/municipalities/{slug}/service-requests/{reference}/attachments/{attachmentId}",
+    tags,
+    summary: "Photo bytes for a request (requires its tracking number)",
+    request: { params: referenceParam.extend({ attachmentId: z.uuid() }) },
+    responses: {
+      200: {
+        description: "JPEG image",
+        content: { "image/jpeg": { schema: z.string().openapi({ format: "binary" }) } },
+      },
+      404: errorResponses[404],
+    },
+  });
+  app.get(
+    "/municipalities/:slug/service-requests/:reference/attachments/:attachmentId",
+    async (c) => {
+      const { slug, reference, attachmentId } = c.req.param();
+      const parsed = referenceSchema.safeParse(reference);
+      if (!parsed.success || !z.uuid().safeParse(attachmentId).success) throw notFound("Photo");
+      return photoResponse(
+        c,
+        await getPublicPhoto(deps, await municipality(slug), parsed.data, attachmentId),
+      );
+    },
+  );
+
+  registerPublicContentRoutes(app, deps, municipality);
 
   return app;
 }

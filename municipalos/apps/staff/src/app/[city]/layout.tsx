@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Bell, ClipboardList, LayoutDashboard, LogOut, ScrollText } from "lucide-react";
+import {
+  Bell,
+  ClipboardList,
+  Globe,
+  LayoutDashboard,
+  LogOut,
+  ScrollText,
+  Settings,
+} from "lucide-react";
 import { Badge, Button, SkipLink } from "@municipalos/ui";
 import { NavLink } from "@/components/nav-link";
 import { logoutAction } from "@/lib/session-actions";
@@ -55,6 +63,14 @@ export default async function CityLayout({ params, children }: Props) {
                 </NavLink>
               </li>
             ) : null}
+            {me.permissions.includes("content.read") ? (
+              <li>
+                <NavLink href={`${root}/content`}>
+                  <Globe className="size-4" aria-hidden="true" />
+                  Website
+                </NavLink>
+              </li>
+            ) : null}
             <li>
               <NavLink href={`${root}/notifications`}>
                 <Bell className="size-4" aria-hidden="true" />
@@ -67,6 +83,16 @@ export default async function CityLayout({ params, children }: Props) {
                 ) : null}
               </NavLink>
             </li>
+            {["categories.manage", "settings.manage", "staff.read"].some((p) =>
+              me.permissions.includes(p),
+            ) ? (
+              <li>
+                <NavLink href={`${root}/admin`}>
+                  <Settings className="size-4" aria-hidden="true" />
+                  Administration
+                </NavLink>
+              </li>
+            ) : null}
             {me.permissions.includes("audit.read") ? (
               <li>
                 <NavLink href={`${root}/audit`}>

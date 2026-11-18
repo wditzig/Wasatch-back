@@ -81,6 +81,31 @@ export const siteSchema = z
   })
   .openapi("MunicipalSite");
 
+export const photoSchema = z
+  .object({
+    id: z.string(),
+    kind: z.enum(["report", "completion"]),
+    width: z.number(),
+    height: z.number(),
+    createdAt: z.string(),
+  })
+  .openapi("RequestPhoto");
+
+export const uploadBody = {
+  required: true,
+  content: {
+    "multipart/form-data": {
+      schema: z.object({
+        file: z.any().openapi({
+          type: "string",
+          format: "binary",
+          description: "JPEG, PNG or WebP, up to 15 MB",
+        }),
+      }),
+    },
+  },
+};
+
 export const createdRequestSchema = z
   .object({
     reference: z.string(),
@@ -104,6 +129,7 @@ export const publicRequestSchema = z
     departmentName: z.string(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    photos: z.array(photoSchema),
     timeline: z.array(
       z.object({
         id: z.string(),
@@ -154,6 +180,10 @@ export const requestDetailSchema = requestListItemSchema
     }),
     resolvedAt: z.string().nullable(),
     closedAt: z.string().nullable(),
+    photos: z.array(photoSchema.extend({ uploadedByName: z.string().nullable() })),
+    canAddPhotos: z.boolean(),
+    onLegalHold: z.boolean(),
+    dispositionedAt: z.string().nullable(),
     events: z.array(
       z.object({
         id: z.string(),
@@ -215,6 +245,8 @@ export const staffMeSchema = z
   .object({
     user: userSchema,
     municipality: municipalitySummarySchema,
+    /** IANA time zone of the municipality, for showing and entering local times. */
+    timezone: z.string(),
     membership: z.object({
       title: z.string().nullable(),
       roleKey: z.string(),

@@ -36,6 +36,7 @@ import {
   requestListItemSchema,
   slugParam,
   staffMeSchema,
+  uploadBody,
 } from "../schemas";
 import {
   addStaffComment,
@@ -46,7 +47,12 @@ import {
   listAssignableStaff,
   listRequests,
 } from "../services/service-requests";
+import { photoResponse, readUploadedFile } from "../lib/upload";
+import { addStaffPhoto, getStaffPhoto } from "../services/attachments";
 import { validationHook } from "../validation-hook";
+import { registerStaffAdminRoutes } from "./admin";
+import { registerStaffContentRoutes } from "./content";
+import { registerStaffRecordsRoutes } from "./records";
 
 const tags = ["Staff"];
 const security = [{ bearerAuth: [] }];
@@ -97,6 +103,7 @@ export function staffRoutes(deps: AppDeps) {
         {
           user: { id: user.id, email: user.email, name: user.name },
           municipality: { slug: m.slug, name: m.name, state: m.state },
+          timezone: m.timezone,
           membership: {
             title: staff.membership.title,
             roleKey: staff.membership.roleKey,
@@ -296,6 +303,49 @@ export function staffRoutes(deps: AppDeps) {
 
   app.openapi(
     createRoute({
+      method: "post",
+      path: "/{slug}/service-requests/{id}/attachments",
+      tags,
+      security,
+      summary: "Add a photo (for example of the completed work). Visible to the resident.",
+      request: { params: idParam, body: uploadBody },
+      responses: { 201: json(z.object({ id: z.string() }), "Photo stored"), ...errorResponses },
+    }),
+    async (c) => {
+      assertCan(c, "service_requests.comment");
+      const { staff, userId, meta } = ctx(c);
+      const id = c.req.param("id");
+      if (!z.uuid().safeParse(id).success) throw notFound("Request");
+      const file = await readUploadedFile(c);
+      return c.json(await addStaffPhoto(deps, staff, userId, id, file, meta), 201);
+    },
+  );
+
+  app.openAPIRegistry.registerPath({
+    method: "get",
+    path: "/v1/staff/{slug}/service-requests/{id}/attachments/{attachmentId}",
+    tags,
+    security,
+    summary: "Photo bytes for a request the caller may see",
+    request: { params: idParam.extend({ attachmentId: z.uuid() }) },
+    responses: {
+      200: {
+        description: "JPEG image",
+        content: { "image/jpeg": { schema: z.string().openapi({ format: "binary" }) } },
+      },
+      404: errorResponses[404],
+    },
+  });
+  app.get("/:slug/service-requests/:id/attachments/:attachmentId", async (c) => {
+    const { staff, userId } = ctx(c);
+    const { id, attachmentId } = c.req.param();
+    if (!z.uuid().safeParse(id).success || !z.uuid().safeParse(attachmentId).success)
+      throw notFound("Photo");
+    return photoResponse(c, await getStaffPhoto(deps, staff, userId, id, attachmentId));
+  });
+
+  app.openapi(
+    createRoute({
       method: "get",
       path: "/{slug}/notifications",
       tags,
@@ -416,6 +466,10 @@ export function staffRoutes(deps: AppDeps) {
       );
     },
   );
+
+  registerStaffContentRoutes(app, deps);
+  registerStaffAdminRoutes(app, deps);
+  registerStaffRecordsRoutes(app, deps);
 
   return app;
 }

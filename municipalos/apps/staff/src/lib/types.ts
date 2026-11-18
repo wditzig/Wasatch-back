@@ -18,6 +18,8 @@ export interface Me {
 export interface StaffMe {
   user: User;
   municipality: MunicipalitySummary;
+  /** IANA time zone of the municipality. */
+  timezone: string;
   membership: {
     title: string | null;
     roleKey: string;
@@ -63,12 +65,25 @@ export interface AvailableTransition {
   label: string;
   requiresNote: boolean;
 }
+export interface RequestPhoto {
+  id: string;
+  kind: "report" | "completion";
+  width: number;
+  height: number;
+  createdAt: string;
+  uploadedByName: string | null;
+}
+
 export interface RequestDetail extends RequestListItem {
   latitude: number | null;
   longitude: number | null;
   reporter: { name: string | null; email: string | null; phone: string | null };
   resolvedAt: string | null;
   closedAt: string | null;
+  photos: RequestPhoto[];
+  canAddPhotos: boolean;
+  onLegalHold: boolean;
+  dispositionedAt: string | null;
   events: RequestEvent[];
   availableTransitions: AvailableTransition[];
   possibleDuplicates: {

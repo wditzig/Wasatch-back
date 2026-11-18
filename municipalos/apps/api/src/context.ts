@@ -1,6 +1,7 @@
 import type { Db } from "@municipalos/database";
 import type { EmailTransport } from "@municipalos/notifications";
 import type { PermissionSet } from "@municipalos/permissions";
+import type { ObjectStorage } from "./lib/storage";
 
 export interface RateLimitRule {
   limit: number;
@@ -9,14 +10,20 @@ export interface RateLimitRule {
 
 export interface AppConfig {
   sessionTtlHours: number;
+  /** Sessions unused for this long are rejected (NIST AC-12 session termination). */
+  sessionIdleMinutes: number;
   publicSiteUrl: string;
-  rateLimits: Record<"login" | "publicSubmit" | "publicMessage" | "publicRead", RateLimitRule>;
+  rateLimits: Record<
+    "login" | "publicSubmit" | "publicMessage" | "publicUpload" | "publicRead",
+    RateLimitRule
+  >;
 }
 
 export const DEFAULT_RATE_LIMITS: AppConfig["rateLimits"] = {
   login: { limit: 10, windowMs: 5 * 60_000 },
   publicSubmit: { limit: 10, windowMs: 10 * 60_000 },
   publicMessage: { limit: 20, windowMs: 10 * 60_000 },
+  publicUpload: { limit: 20, windowMs: 10 * 60_000 },
   publicRead: { limit: 300, windowMs: 60_000 },
 };
 
@@ -32,6 +39,7 @@ export function scaleRateLimits(
 export interface AppDeps {
   db: Db;
   email: EmailTransport;
+  storage: ObjectStorage;
   config: AppConfig;
 }
 

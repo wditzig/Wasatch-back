@@ -28,6 +28,11 @@ export default async function LoginPage({
       <Card className="mt-6 p-6">
         <LoginForm />
       </Card>
+      <p className="mt-8 border-t border-line pt-4 text-xs text-ink-muted">
+        This is a government information system for authorized municipal staff only. Activity is
+        recorded and reviewed. Unauthorized use is prohibited and may be reported to the
+        municipality.
+      </p>
     </main>
   );
 }

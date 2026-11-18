@@ -9,10 +9,11 @@ import { ApiError, api } from "@/lib/api";
 import { requireServiceRequests } from "@/lib/services";
 import type { PublicServiceRequest } from "@/lib/types";
 import { MessageForm } from "./message-form";
+import { PhotoForm } from "./photo-form";
 
 type Props = {
   params: Promise<{ city: string; reference: string }>;
-  searchParams: Promise<{ submitted?: string }>;
+  searchParams: Promise<{ submitted?: string; photosFailed?: string }>;
 };
 
 // Tracking pages are personal; keep them out of search engines.
@@ -42,6 +43,8 @@ function eventTitle(e: PublicServiceRequest["timeline"][number]): string {
       return "Message from city staff";
     case "resident_message":
       return "Information added by you";
+    case "photo_added":
+      return e.from === "city" ? "City staff added a photo" : "Photo added by you";
   }
 }
 
@@ -60,7 +63,10 @@ export default async function RequestStatusPage({ params, searchParams }: Props)
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
-  const justSubmitted = (await searchParams).submitted === "1";
+  const query = await searchParams;
+  const justSubmitted = query.submitted === "1";
+  const photosFailed = Number.parseInt(query.photosFailed ?? "0", 10) || 0;
+  const residentPhotos = request.photos.filter((p) => p.kind === "report").length;
   const currentIndex = SERVICE_REQUEST_STATUSES.indexOf(request.status);
 
   return (
@@ -69,6 +75,20 @@ export default async function RequestStatusPage({ params, searchParams }: Props)
         <Alert tone="success" live title="Thank you. Your request was sent.">
           Your tracking number is <strong className="font-mono">{request.reference}</strong>. Save
           it to check progress later — this page&rsquo;s address works too.
+        </Alert>
+      ) : null}
+
+      {photosFailed > 0 ? (
+        <Alert
+          tone="warning"
+          live
+          title={
+            photosFailed === 1
+              ? "One photo could not be attached."
+              : `${photosFailed} photos could not be attached.`
+          }
+        >
+          Your request was still sent. You can try adding the photo again below.
         </Alert>
       ) : null}
 
@@ -136,6 +156,42 @@ export default async function RequestStatusPage({ params, searchParams }: Props)
           </div>
         </dl>
       </Card>
+
+      {request.photos.length > 0 || request.isOpen ? (
+        <Card>
+          <CardHeader title="Photos" />
+          {request.photos.length > 0 ? (
+            <ul className="grid grid-cols-2 gap-3 p-5 sm:grid-cols-3">
+              {request.photos.map((photo, i) => {
+                const src = `/${city}/requests/${request.reference}/photos/${photo.id}`;
+                return (
+                  <li key={photo.id}>
+                    <a href={src} target="_blank" rel="noreferrer" className="block">
+                      <img
+                        src={src}
+                        alt={`Photo ${i + 1}, ${photo.kind === "completion" ? "added by city staff" : "added by you"}`}
+                        width={photo.width}
+                        height={photo.height}
+                        loading="lazy"
+                        className="aspect-4/3 w-full rounded-lg border border-line object-cover"
+                      />
+                      <span className="sr-only"> (opens in a new tab)</span>
+                    </a>
+                    <p className="mt-1 text-xs text-ink-muted">
+                      {photo.kind === "completion" ? "From city staff" : "From you"}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          {request.isOpen && residentPhotos < 4 ? (
+            <div className={request.photos.length > 0 ? "border-t border-line p-5" : "p-5"}>
+              <PhotoForm city={city} reference={request.reference} existing={residentPhotos} />
+            </div>
+          ) : null}
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader title="Updates" />

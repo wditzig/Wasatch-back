@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { referenceSchema, residentMessageSchema } from "@municipalos/validation";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, apiUpload, photoProblem } from "@/lib/api";
 
 export interface SimpleFormState {
   error?: string;
@@ -57,6 +57,30 @@ export async function addMessage(
     });
   } catch (err) {
     if (err instanceof ApiError) return { value, error: err.message };
+    throw err;
+  }
+  revalidatePath(`/${city}/requests/${reference}`);
+  return { ok: true };
+}
+
+export async function addPhoto(
+  city: string,
+  reference: string,
+  existing: number,
+  _prev: SimpleFormState,
+  form: FormData,
+): Promise<SimpleFormState> {
+  const file = form.get("photo");
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a photo to add." };
+  const problem = photoProblem([file], existing);
+  if (problem) return { error: problem };
+  try {
+    await apiUpload(
+      `/v1/public/municipalities/${city}/service-requests/${reference}/attachments`,
+      file,
+    );
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.message };
     throw err;
   }
   revalidatePath(`/${city}/requests/${reference}`);

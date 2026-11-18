@@ -51,6 +51,20 @@ export default async function NotificationsPage({ params }: { params: Promise<{ 
                       >
                         {n.subject}
                       </Link>
+                    ) : n.entityType === "website_page" && n.entityId ? (
+                      <Link
+                        href={`/${slug}/content/${n.entityId}`}
+                        className="text-brand-700 underline underline-offset-2 hover:text-brand-800"
+                      >
+                        {n.subject}
+                      </Link>
+                    ) : n.entityType === "announcement" ? (
+                      <Link
+                        href={`/${slug}/content/announcements`}
+                        className="text-brand-700 underline underline-offset-2 hover:text-brand-800"
+                      >
+                        {n.subject}
+                      </Link>
                     ) : (
                       n.subject
                     )}

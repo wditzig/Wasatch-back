@@ -89,6 +89,50 @@ can be preserved with `git subtree split`) before more people or any deployment 
 `marketing`, `resident-mobile`, `platform-admin`, `packages/ai`, `packages/integrations` are
 created when their milestone begins. Empty shells would look like progress and rot.
 
+## ADR-014 — Compliance is built as structure, and claimed only after assessment
+
+Municipal buyers ask about ADA Title II, GovRAMP/FedRAMP-style security controls, records
+retention and privacy. Decision: every requirement gets a product structure, a test and a row in
+docs/COMPLIANCE.md with an honest status; the words "compliant", "certified" and "authorized" are
+not used about MunicipalOS until an independent assessor says so. CJIS, HIPAA and cardholder data
+are out of scope by design; adding any of them is a recorded decision first.
+
+## ADR-015 — Records are never deleted by default; disposition is a human act
+
+Government records have legally mandated retention periods that differ by state and record type,
+and may be subject to holds. Decision: no retention period is assumed (records are kept
+permanently until a city configures one with its legal authority); eligible records are listed for
+review; an authorized person confirms each batch; disposition redacts personal data rather than
+deleting the record; legal holds block it at the database. Consequence: storage grows until a city
+acts, which is the safe failure mode.
+
+## ADR-016 — Uploaded images are re-encoded, not stored as received
+
+Storing user files verbatim invites polyglot files, embedded scripts and leaked GPS coordinates.
+Decision: accept JPEG/PNG/WebP only (identified from bytes), decode and re-encode to JPEG with
+size bounds, discard all metadata. Cost: CPU per upload and loss of the original file, which is
+acceptable for problem-report photos. Documents (PDFs) will need a different control (scanning).
+
+## ADR-017 — Email outbox in PostgreSQL rather than a queue service
+
+Notification rows already live in the database in the same transaction as the change. Decision:
+treat queued email rows as the outbox, claim them with `FOR UPDATE SKIP LOCKED`, retry with
+backoff. No new infrastructure, exactly-once claiming, and delivery state is queryable for
+support. Revisit if volume or latency demands a dedicated queue.
+
+## ADR-018 — Per-request CSP nonce; every page rendered dynamically
+
+A nonce-based Content-Security-Policy requires per-request rendering, so static prerendering is
+disabled in both web apps. Pages already depend on live, per-tenant or per-user data, so nothing
+cacheable was lost. Public content caching, if needed later, belongs at the CDN with
+tenant-aware keys.
+
+## ADR-019 — City domains accept both clean and prefixed paths (for now)
+
+Links are generated as `/{city}/…`. On a city's own domain the proxy maps `/report` to that city
+and also accepts `/{city}/report`, so everything works, but addresses still show the prefix after
+in-site navigation. Generating prefix-free links on custom domains is a follow-up.
+
 ## Open questions for the owner
 
 1. Identity provider (ADR-004).

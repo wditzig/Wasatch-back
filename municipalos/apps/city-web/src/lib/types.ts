@@ -52,9 +52,16 @@ export interface PublicServiceRequest {
   departmentName: string;
   createdAt: string;
   updatedAt: string;
+  photos: {
+    id: string;
+    kind: "report" | "completion";
+    width: number;
+    height: number;
+    createdAt: string;
+  }[];
   timeline: {
     id: string;
-    type: "created" | "status_changed" | "staff_message" | "resident_message";
+    type: "created" | "status_changed" | "staff_message" | "resident_message" | "photo_added";
     toStatus: ServiceRequestStatus | null;
     body: string | null;
     from: "resident" | "city";

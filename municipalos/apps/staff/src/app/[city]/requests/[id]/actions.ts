@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { serviceRequestStatusSchema } from "@municipalos/validation";
 import { serviceRequestStatusLabel } from "@municipalos/workflows";
 import { actionError, api } from "@/lib/api";
+import { MAX_PHOTO_BYTES, PHOTO_TYPES, uploadPhoto } from "@/lib/files";
 import { base } from "@/lib/staff";
 import type { ActionState } from "@/lib/types";
 
@@ -76,4 +77,24 @@ export async function commentAction(
   return {
     success: visibility === "public" ? "Message sent to the resident." : "Internal note added.",
   };
+}
+
+export async function photoAction(
+  slug: string,
+  id: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a photo to add." };
+  if (!PHOTO_TYPES.includes(file.type))
+    return { error: "Photos must be JPEG, PNG or WebP images." };
+  if (file.size > MAX_PHOTO_BYTES) return { error: "Photos must be 15 MB or smaller." };
+  try {
+    await uploadPhoto(`${base(slug)}/service-requests/${id}/attachments`, file);
+  } catch (err) {
+    return actionError(err);
+  }
+  refresh(slug, id);
+  return { success: "Photo added. The resident can see it on the tracking page." };
 }

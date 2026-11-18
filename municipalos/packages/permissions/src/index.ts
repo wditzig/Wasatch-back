@@ -17,6 +17,14 @@ export const PERMISSIONS = [
   "service_requests.close",
   "service_requests.reopen",
   "staff.read",
+  "staff.manage",
+  "categories.manage",
+  "settings.manage",
+  "content.read",
+  "content.edit",
+  "content.publish",
+  "records.export",
+  "records.manage",
   "audit.read",
 ] as const;
 
@@ -31,7 +39,15 @@ export const PERMISSION_DESCRIPTIONS: Record<Permission, string> = {
   "service_requests.close": "Close service requests",
   "service_requests.reopen": "Reopen resolved or closed service requests",
   "staff.read": "View the staff directory for the municipality",
-  "audit.read": "View the audit log",
+  "staff.manage": "Change staff roles, departments and access",
+  "categories.manage": "Create and edit service request categories and their routing",
+  "settings.manage": "Edit municipal branding, contact details and reporting policy",
+  "content.read": "View website content including unpublished drafts",
+  "content.edit": "Create and edit website content and submit it for review",
+  "content.publish": "Approve, publish, schedule and archive website content",
+  "records.export": "Export complete records, for example to answer a public records request",
+  "records.manage": "Set retention schedules, place legal holds and carry out approved disposition",
+  "audit.read": "View and export the audit log",
 };
 
 export function isPermission(value: string): value is Permission {
@@ -86,6 +102,11 @@ export const SYSTEM_ROLES = [
       "service_requests.assign",
       "service_requests.comment",
       "staff.read",
+      "content.read",
+      "content.edit",
+      "content.publish",
+      "records.export",
+      "records.manage",
     ],
   },
   {
@@ -98,14 +119,20 @@ export const SYSTEM_ROLES = [
   {
     key: "content_editor",
     name: "Content Editor",
-    description: "Edits website content. (CMS module not yet built; no permissions yet.)",
-    permissions: [],
+    description: "Drafts and edits website content. Publishing needs approval.",
+    permissions: ["content.read", "content.edit"],
   },
   {
     key: "auditor",
     name: "Read-Only Auditor",
     description: "Read-only access to records and the audit log.",
-    permissions: ["service_requests.read_all", "staff.read", "audit.read"],
+    permissions: [
+      "service_requests.read_all",
+      "staff.read",
+      "content.read",
+      "records.export",
+      "audit.read",
+    ],
   },
 ] as const satisfies readonly SystemRole[];
 

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createServiceRequestSchema } from "@municipalos/validation";
-import { ApiError, api, fieldErrors } from "@/lib/api";
+import { ApiError, api, apiUpload, fieldErrors, photoProblem } from "@/lib/api";
 import type { CategorySuggestions, CreatedServiceRequest } from "@/lib/types";
 
 export interface ReportFormState {
@@ -40,15 +40,18 @@ export async function submitReport(
     latitude: Number.isFinite(lat) ? lat : undefined,
     longitude: Number.isFinite(lng) ? lng : undefined,
   });
-  if (!parsed.success) {
+  const photos = form.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
+  const photoError = photoProblem(photos);
+
+  if (!parsed.success || photoError) {
     const errors: Record<string, string> = {};
-    for (const issue of parsed.error.issues) {
+    if (photoError) errors.photos = photoError;
+    for (const issue of parsed.success ? [] : parsed.error.issues) {
       const key = String(issue.path[0] ?? "form");
       errors[key] ??= key === "categoryId" ? "Choose what kind of problem this is" : issue.message;
     }
     return { errors, values };
   }
-
   let created: CreatedServiceRequest;
   try {
     created = await api<CreatedServiceRequest>(
@@ -70,7 +73,22 @@ export async function submitReport(
     }
     throw err;
   }
-  redirect(`/${city}/requests/${created.reference}?submitted=1`);
+  // The request exists now. A photo that fails must not lose it: report it on the next page.
+  let failedPhotos = 0;
+  for (const photo of photos) {
+    try {
+      await apiUpload(
+        `/v1/public/municipalities/${city}/service-requests/${created.reference}/attachments`,
+        photo,
+      );
+    } catch (err) {
+      failedPhotos += 1;
+      console.warn("[city-web] photo upload failed", err instanceof ApiError ? err.code : err);
+    }
+  }
+  redirect(
+    `/${city}/requests/${created.reference}?submitted=1${failedPhotos ? `&photosFailed=${failedPhotos}` : ""}`,
+  );
 }
 
 /** Advisory category suggestion and emergency-wording check for the text typed so far. */

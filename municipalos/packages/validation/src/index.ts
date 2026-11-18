@@ -89,3 +89,128 @@ export const referenceSchema = z
   .trim()
   .toUpperCase()
   .regex(/^[A-Z]{2,4}-[0-9A-HJKMNP-TV-Z]{8}$/, "That doesn't look like a tracking number");
+
+/* ───────────────────────────── Website CMS ───────────────────────────── */
+
+/**
+ * URLs editors may link to. Only `https:`, `mailto:`, `tel:` and site-relative paths are
+ * accepted, so content can never carry `javascript:`/`data:` links, protocol-relative URLs or
+ * plain-HTTP links.
+ */
+export const safeUrlSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(500)
+  .refine((value) => {
+    // No whitespace, control characters or backslashes (browsers treat "\" like "/").
+    if (/[\s\\]/.test(value) || [...value].some((ch) => ch.charCodeAt(0) < 0x20)) return false;
+    if (value.startsWith("/")) return !value.startsWith("//");
+    try {
+      return ["https:", "mailto:", "tel:"].includes(new URL(value).protocol);
+    } catch {
+      return false;
+    }
+  }, "Use a link that starts with https://, mailto:, tel: or /");
+
+const blockId = z.string().min(1).max(40);
+const line = (max: number) => z.string().trim().min(1).max(max);
+const optionalLine = (max: number) => optionalText(max);
+
+/**
+ * Reusable content blocks. Text is always plain text rendered as text: there is deliberately no
+ * HTML or Markdown block, so stored content cannot inject markup or scripts.
+ */
+export const contentBlockSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("heading"),
+    id: blockId,
+    text: line(120),
+    level: z.union([z.literal(2), z.literal(3)]),
+  }),
+  z.object({ type: z.literal("text"), id: blockId, text: line(5000) }),
+  z.object({
+    type: z.literal("callout"),
+    id: blockId,
+    tone: z.enum(["info", "warning"]),
+    title: optionalLine(120),
+    text: line(1000),
+  }),
+  z.object({
+    type: z.literal("links"),
+    id: blockId,
+    title: optionalLine(120),
+    items: z
+      .array(z.object({ label: line(120), url: safeUrlSchema }))
+      .min(1)
+      .max(12),
+  }),
+  z.object({
+    type: z.literal("contact"),
+    id: blockId,
+    name: line(120),
+    phone: optionalLine(40),
+    email: z.preprocess(
+      (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+      z.email("Enter a valid email address").max(254).optional(),
+    ),
+    address: optionalLine(300),
+    hours: optionalLine(200),
+  }),
+  z.object({ type: z.literal("service_links"), id: blockId }),
+]);
+export type ContentBlock = z.infer<typeof contentBlockSchema>;
+
+export const CONTENT_BLOCK_TYPES = [
+  "heading",
+  "text",
+  "callout",
+  "links",
+  "contact",
+  "service_links",
+] as const;
+export type ContentBlockType = (typeof CONTENT_BLOCK_TYPES)[number];
+
+export const contentBlocksSchema = z
+  .array(contentBlockSchema)
+  .max(40, "A page can have at most 40 blocks")
+  .refine(
+    (blocks) => new Set(blocks.map((b) => b.id)).size === blocks.length,
+    "Block ids must be unique",
+  );
+
+const pageTitle = z.string().trim().min(2, "Enter a page title").max(120);
+
+export const createPageSchema = z.object({ slug: slugSchema, title: pageTitle });
+
+export const saveDraftSchema = z.object({
+  title: pageTitle,
+  blocks: contentBlocksSchema,
+  /** `version` of the draft being edited, or null when starting a new draft. */
+  expectedVersion: z.number().int().min(1).nullable(),
+});
+export type SaveDraftInput = z.infer<typeof saveDraftSchema>;
+
+export const publishRevisionSchema = z.object({
+  /** Publish later instead of now. Must be in the future. */
+  publishAt: z.iso.datetime({ offset: true }).optional(),
+});
+
+export const requestChangesSchema = z.object({
+  note: z.string().trim().min(2, "Explain what needs to change").max(2000),
+});
+
+export const pageNavigationSchema = z.object({
+  showInNav: z.boolean(),
+  navOrder: z.number().int().min(0).max(999),
+});
+
+export const announcementSchema = z.object({
+  title: z.string().trim().min(3, "Enter a title").max(160),
+  body: z.string().trim().min(3, "Enter the announcement text").max(2000),
+});
+
+export const publishAnnouncementSchema = z.object({
+  /** When the announcement should stop showing. Must be in the future. */
+  expiresAt: z.iso.datetime({ offset: true }).optional(),
+});

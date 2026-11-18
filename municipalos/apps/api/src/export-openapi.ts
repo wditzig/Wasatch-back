@@ -5,12 +5,15 @@ import type { Db } from "@municipalos/database";
 import { MemoryEmailTransport } from "@municipalos/notifications";
 import { createApp } from "./app";
 import { DEFAULT_RATE_LIMITS } from "./context";
+import { MemoryStorage } from "./lib/storage";
 
 const app = createApp({
   db: {} as Db,
   email: new MemoryEmailTransport(),
+  storage: new MemoryStorage(),
   config: {
     sessionTtlHours: 12,
+    sessionIdleMinutes: 30,
     publicSiteUrl: "http://localhost:3000",
     rateLimits: DEFAULT_RATE_LIMITS,
   },

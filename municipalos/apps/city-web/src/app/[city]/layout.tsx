@@ -3,9 +3,22 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 import { SkipLink, cityColors } from "@municipalos/ui";
-import { getSite } from "@/lib/api";
+import { api, getSite } from "@/lib/api";
 
 type Props = { children: React.ReactNode; params: Promise<{ city: string }> };
+
+/** Navigation pages are optional: if they cannot be loaded the rest of the site still works. */
+async function getNavPages(city: string): Promise<{ slug: string; title: string }[]> {
+  try {
+    const { items } = await api<{ items: { slug: string; title: string }[] }>(
+      `/v1/public/municipalities/${city}/pages`,
+    );
+    return items;
+  } catch (err) {
+    console.warn(`[city-web] navigation pages unavailable for ${city}`, err);
+    return [];
+  }
+}
 
 export async function generateMetadata({
   params,
@@ -35,6 +48,8 @@ export default async function CityLayout({ children, params }: Props) {
         ]
       : []),
     { href: `/${city}/departments`, label: "Departments" },
+    // Published CMS pages that staff chose to show in the navigation.
+    ...(await getNavPages(city)).map((p) => ({ href: `/${city}/p/${p.slug}`, label: p.title })),
   ];
   const style = {
     "--color-city": colors.primary,
@@ -101,6 +116,18 @@ export default async function CityLayout({ children, params }: Props) {
           <div className="sm:text-right">
             <p className="font-semibold text-ink">In an emergency, call 911.</p>
             <p className="mt-1">This website is for non-emergency city services.</p>
+            <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-1 sm:justify-end">
+              <li>
+                <Link href={`/${city}/accessibility`} className="underline">
+                  Accessibility
+                </Link>
+              </li>
+              <li>
+                <Link href={`/${city}/privacy`} className="underline">
+                  Privacy
+                </Link>
+              </li>
+            </ul>
             <p className="mt-4 text-xs">
               <Link href="/" className="underline">
                 Choose a different city

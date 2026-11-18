@@ -2,6 +2,7 @@ import { assertRuntimeRoleIsRestricted, createDb, type DbHandle } from "@municip
 import { DEMO_PASSWORD } from "@municipalos/database/seed";
 import { MemoryEmailTransport } from "@municipalos/notifications";
 import { createApp } from "../src/app";
+import { MemoryStorage } from "../src/lib/storage";
 import { DEFAULT_RATE_LIMITS, type AppConfig } from "../src/context";
 
 const APP_URL =
@@ -12,13 +13,23 @@ const GENEROUS: AppConfig["rateLimits"] = {
   login: { limit: 10_000, windowMs: 60_000 },
   publicSubmit: { limit: 10_000, windowMs: 60_000 },
   publicMessage: { limit: 10_000, windowMs: 60_000 },
+  publicUpload: { limit: 10_000, windowMs: 60_000 },
   publicRead: { limit: 100_000, windowMs: 60_000 },
 };
 
 export interface TestApp {
   handle: DbHandle;
   email: MemoryEmailTransport;
+  storage: MemoryStorage;
   api: Api;
+  /** Sends a multipart upload with one `file` field. */
+  upload(
+    path: string,
+    bytes: Buffer,
+    options?: { token?: string; filename?: string; type?: string },
+  ): Promise<ApiResponse>;
+  /** Raw fetch for binary responses. */
+  raw(path: string, token?: string): Promise<Response>;
   login(email: string, password?: string): Promise<string>;
   close(): Promise<void>;
 }
@@ -44,11 +55,14 @@ export async function createTestApp(
   const handle = createDb(APP_URL, { max: 5 });
   await assertRuntimeRoleIsRestricted(handle.db);
   const email = new MemoryEmailTransport();
+  const storage = new MemoryStorage();
   const app = createApp({
     db: handle.db,
     email,
+    storage,
     config: {
       sessionTtlHours: 1,
+      sessionIdleMinutes: 30,
       publicSiteUrl: "http://site.test",
       rateLimits: { ...DEFAULT_RATE_LIMITS, ...GENEROUS, ...rateLimits },
     },
@@ -71,7 +85,27 @@ export async function createTestApp(
   return {
     handle,
     email,
+    storage,
     api,
+    async upload(path, bytes, options = {}) {
+      const form = new FormData();
+      form.set(
+        "file",
+        new Blob([new Uint8Array(bytes)], { type: options.type ?? "image/jpeg" }),
+        options.filename ?? "photo.jpg",
+      );
+      const res = await app.request(path, {
+        method: "POST",
+        headers: options.token ? { authorization: `Bearer ${options.token}` } : {},
+        body: form,
+      });
+      const text = await res.text();
+      return { status: res.status, body: text ? JSON.parse(text) : null, headers: res.headers };
+    },
+    raw: (path, token) =>
+      Promise.resolve(
+        app.request(path, { headers: token ? { authorization: `Bearer ${token}` } : {} }),
+      ),
     async login(address, password = DEMO_PASSWORD) {
       const cached = tokens.get(address);
       if (cached) return cached;

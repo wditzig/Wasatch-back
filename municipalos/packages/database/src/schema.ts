@@ -304,6 +304,8 @@ export const serviceRequests = pgTable(
     updatedAt: updatedAt(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    /** Set when personal data was redacted under the retention schedule. */
+    dispositionedAt: timestamp("dispositioned_at", { withTimezone: true }),
   },
   (t) => [
     unique("service_requests_tenant_id").on(t.municipalityId, t.id),
@@ -341,6 +343,10 @@ export type ServiceRequestEventType =
   | "unassigned"
   | "staff_note"
   | "staff_message"
+  | "photo_added"
+  | "legal_hold_placed"
+  | "legal_hold_released"
+  | "dispositioned"
   | "resident_message";
 
 /** Append-only history. The runtime role has no UPDATE/DELETE privilege on this table. */
@@ -379,6 +385,45 @@ export const serviceRequestEvents = pgTable(
   ],
 );
 
+/**
+ * Photos attached to a service request. The bytes live in object storage under `storage_key`;
+ * this row is the authorization record. Images are re-encoded on upload (metadata such as GPS
+ * position is stripped), so `content_type` is always the stored format.
+ */
+export const serviceRequestAttachments = pgTable(
+  "service_request_attachments",
+  {
+    id: id(),
+    municipalityId: tenantId(),
+    requestId: uuid("request_id").notNull(),
+    /** `report`: sent by the resident. `completion`: added by staff to show the work done. */
+    kind: text("kind").$type<"report" | "completion">().notNull(),
+    storageKey: text("storage_key").notNull().unique(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    uploadedByKind: text("uploaded_by_kind").$type<"resident" | "staff">().notNull(),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("service_request_attachments_request_idx").on(t.requestId, t.createdAt),
+    foreignKey({
+      name: "service_request_attachments_request_fk",
+      columns: [t.municipalityId, t.requestId],
+      foreignColumns: [serviceRequests.municipalityId, serviceRequests.id],
+    }),
+    check("service_request_attachments_kind_check", sql`${t.kind} in ('report','completion')`),
+    check(
+      "service_request_attachments_uploader_check",
+      sql`${t.uploadedByKind} in ('resident','staff')`,
+    ),
+  ],
+);
+
 export const notifications = pgTable(
   "notifications",
   {
@@ -396,8 +441,15 @@ export const notifications = pgTable(
     createdAt: createdAt(),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     readAt: timestamp("read_at", { withTimezone: true }),
+    /** Email delivery bookkeeping for the outbox worker. */
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    lastError: text("last_error"),
   },
   (t) => [
+    index("notifications_outbox_idx")
+      .on(t.status, t.nextAttemptAt)
+      .where(sql`${t.channel} = 'email' and ${t.status} = 'queued'`),
     index("notifications_recipient_idx").on(t.municipalityId, t.recipientUserId, t.createdAt),
     check("notifications_channel_check", sql`${t.channel} in ('in_app','email')`),
     check(
@@ -429,4 +481,146 @@ export const auditEvents = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("audit_events_tenant_created_idx").on(t.municipalityId, t.createdAt)],
+);
+
+/* ───────────────────────────── Website CMS ───────────────────────────── */
+
+export type ContentRevisionStatus = "draft" | "in_review" | "published" | "archived";
+
+/**
+ * A page of the municipal website. The page row holds identity and navigation settings only;
+ * what the page says lives in `content_revisions`. The revision the public sees ("live") is the
+ * published revision with the latest effective time that is not in the future, so a scheduled
+ * revision takes over on its own when its `publish_at` passes.
+ */
+export const websitePages = pgTable(
+  "website_pages",
+  {
+    id: id(),
+    municipalityId: tenantId(),
+    slug: text("slug").notNull(),
+    /** Working title for staff lists; the public title comes from the live revision. */
+    title: text("title").notNull(),
+    showInNav: boolean("show_in_nav").notNull().default(false),
+    navOrder: integer("nav_order").notNull().default(0),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    unique("website_pages_tenant_slug").on(t.municipalityId, t.slug),
+    unique("website_pages_tenant_id").on(t.municipalityId, t.id),
+  ],
+);
+
+/**
+ * Every saved version of a page. Rows are never deleted; superseded published revisions stay
+ * as history. At most one revision per page is being worked on (draft or in review).
+ */
+export const contentRevisions = pgTable(
+  "content_revisions",
+  {
+    id: id(),
+    municipalityId: tenantId(),
+    pageId: uuid("page_id").notNull(),
+    revisionNumber: integer("revision_number").notNull(),
+    title: text("title").notNull(),
+    /** Validated content blocks (see `contentBlocksSchema`). Never raw HTML. */
+    blocks: jsonb("blocks").$type<unknown[]>().notNull().default([]),
+    status: text("status").$type<ContentRevisionStatus>().notNull().default("draft"),
+    /** Incremented on every save; guards against two editors overwriting each other. */
+    version: integer("version").notNull().default(1),
+    authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "restrict" }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    reviewerUserId: uuid("reviewer_user_id").references(() => users.id, { onDelete: "restrict" }),
+    reviewNote: text("review_note"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    /** When set and in the future, an approved revision is "scheduled". */
+    publishAt: timestamp("publish_at", { withTimezone: true }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    unique("content_revisions_page_number").on(t.pageId, t.revisionNumber),
+    uniqueIndex("content_revisions_one_working_idx")
+      .on(t.pageId)
+      .where(sql`${t.status} in ('draft','in_review')`),
+    index("content_revisions_live_idx").on(t.municipalityId, t.pageId, t.status),
+    foreignKey({
+      name: "content_revisions_page_fk",
+      columns: [t.municipalityId, t.pageId],
+      foreignColumns: [websitePages.municipalityId, websitePages.id],
+    }),
+    check(
+      "content_revisions_status_check",
+      sql`${t.status} in ('draft','in_review','published','archived')`,
+    ),
+  ],
+);
+
+/* ───────────────────────────── Records management ───────────────────────────── */
+
+export type RecordType = "service_request";
+
+/**
+ * A municipality's retention schedule: how long a type of record is kept after it is closed,
+ * and the legal authority for that period. `retention_days` NULL means "keep permanently".
+ * A record type with no row is also kept permanently: nothing is ever dispositioned by default.
+ */
+export const retentionPolicies = pgTable(
+  "retention_policies",
+  {
+    id: id(),
+    municipalityId: tenantId(),
+    recordType: text("record_type").$type<RecordType>().notNull(),
+    retentionDays: integer("retention_days"),
+    /** Citation of the schedule or statute this period comes from. */
+    authority: text("authority").notNull(),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    unique("retention_policies_tenant_type").on(t.municipalityId, t.recordType),
+    check(
+      "retention_policies_days_check",
+      sql`${t.retentionDays} is null or ${t.retentionDays} >= 30`,
+    ),
+    check("retention_policies_type_check", sql`${t.recordType} in ('service_request')`),
+  ],
+);
+
+/**
+ * A legal hold suspends disposition of one record (litigation, audit, public records request).
+ * Holds are never deleted: releasing sets `released_at`. A record is held while it has any
+ * hold with `released_at` NULL.
+ */
+export const legalHolds = pgTable(
+  "legal_holds",
+  {
+    id: id(),
+    municipalityId: tenantId(),
+    recordType: text("record_type").$type<RecordType>().notNull(),
+    recordId: uuid("record_id").notNull(),
+    reason: text("reason").notNull(),
+    placedByUserId: uuid("placed_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    placedAt: timestamp("placed_at", { withTimezone: true }).notNull().defaultNow(),
+    releasedByUserId: uuid("released_by_user_id").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    releaseNote: text("release_note"),
+  },
+  (t) => [
+    index("legal_holds_record_idx").on(t.municipalityId, t.recordType, t.recordId),
+    check("legal_holds_type_check", sql`${t.recordType} in ('service_request')`),
+  ],
 );

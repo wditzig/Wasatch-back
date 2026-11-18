@@ -50,7 +50,24 @@ export function requireSession(deps: AppDeps) {
         ),
       );
     if (!row) throw unauthorized();
-    if (Date.now() - row.lastSeenAt.getTime() > 5 * 60_000) {
+    const idleMs = Date.now() - row.lastSeenAt.getTime();
+    if (idleMs > deps.config.sessionIdleMinutes * 60_000) {
+      // Idle too long: end the session server-side so the token cannot be revived.
+      await deps.db
+        .update(sessions)
+        .set({ revokedAt: new Date() })
+        .where(eq(sessions.id, row.sessionId));
+      await recordAudit(deps.db, {
+        municipalityId: null,
+        actorKind: "system",
+        actorUserId: row.id,
+        action: "auth.session_idle_timeout",
+        ip: c.get("ip"),
+        requestId: c.get("requestId"),
+      });
+      throw unauthorized();
+    }
+    if (idleMs > 60_000) {
       await deps.db
         .update(sessions)
         .set({ lastSeenAt: new Date() })

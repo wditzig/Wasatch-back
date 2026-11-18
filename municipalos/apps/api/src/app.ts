@@ -1,9 +1,11 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { sql } from "@municipalos/database";
 import { bodyLimit } from "hono/body-limit";
+import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import type { AppDeps, AppEnv } from "./context";
 import { AppError } from "./errors";
+import { MAX_UPLOAD_BYTES } from "./lib/images";
 import { RateLimiter } from "./middleware/rate-limit";
 import { requestContext } from "./middleware/request-context";
 import { authRoutes } from "./routes/auth";
@@ -16,7 +18,12 @@ export function createApp(deps: AppDeps) {
 
   app.use("*", requestContext);
   app.use("*", secureHeaders());
-  app.use("*", bodyLimit({ maxSize: 64 * 1024 }));
+  // JSON bodies are small. Photo uploads get a larger, still bounded, allowance.
+  const jsonLimit = bodyLimit({ maxSize: 64 * 1024 });
+  const uploadLimit = bodyLimit({ maxSize: MAX_UPLOAD_BYTES + 64 * 1024 });
+  app.use("*", (c, next) =>
+    c.req.path.endsWith("/attachments") ? uploadLimit(c, next) : jsonLimit(c, next),
+  );
   app.use("/v1/*", async (c, next) => {
     await next();
     // API responses can contain personal data; never let shared caches store them.
@@ -67,17 +74,20 @@ export function createApp(deps: AppDeps) {
         err.status,
       );
     }
-    if (err instanceof SyntaxError || (err as { status?: number }).status === 400) {
-      return c.json(
-        { error: { code: "bad_request", message: "The request could not be read." }, requestId },
-        400,
-      );
-    }
-    if ((err as { status?: number }).status === 413) {
-      return c.json(
-        { error: { code: "payload_too_large", message: "The request is too large." }, requestId },
-        413,
-      );
+    // Framework-raised client errors (malformed JSON, wrong content type, body too large).
+    const status =
+      err instanceof HTTPException ? err.status : err instanceof SyntaxError ? 400 : null;
+    if (status !== null && status >= 400 && status < 500) {
+      const known: Record<number, [string, string]> = {
+        400: ["bad_request", "The request could not be read."],
+        413: ["payload_too_large", "The request is too large."],
+        415: ["unsupported_media_type", "That content type is not supported here."],
+      };
+      const [code, message] = known[status] ?? [
+        "bad_request",
+        "The request could not be processed.",
+      ];
+      return c.json({ error: { code, message }, requestId }, status as 400);
     }
     // Unexpected: log with the request id, return nothing internal to the client.
     console.error(

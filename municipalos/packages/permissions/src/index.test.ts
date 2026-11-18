@@ -9,7 +9,7 @@ describe("system roles", () => {
   });
   it("auditor is read-only", () => {
     const p = role("auditor");
-    for (const perm of p) expect(perm.endsWith(".read") || perm.includes(".read_")).toBe(true);
+    for (const perm of p) expect(/\.(read|export)$|\.read_/.test(perm), perm).toBe(true);
   });
   it("department employee cannot assign, close, reopen or read audit log", () => {
     const p = role("department_employee");

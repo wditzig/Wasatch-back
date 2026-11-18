@@ -12,18 +12,26 @@ isolated from every other's.
 
 ## What works today
 
-| Area                                                                                        | State                                                          |
-| ------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Multi-tenant foundation (PostgreSQL row-level security, tenant-scoped API, RBAC, audit log) | Working, tested                                                |
-| Municipal website shell (per-city branding, home, services, departments, announcements)     | Working — content is read from the database; no editing UI yet |
-| Service requests: resident submit / track / reply                                           | Working, tested                                                |
-| Service requests: staff queue, triage, assign, status, notes, resident messages             | Working, tested                                                |
-| Staff dashboard (role-aware queue, metrics, notifications, audit log)                       | Working                                                        |
-| OpenAPI document                                                                            | Generated from code: [docs/openapi.json](docs/openapi.json)    |
+| Area                                                                                                                                    | State                                                                                  |
+| --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Multi-tenant foundation (PostgreSQL row-level security, tenant-scoped API, roles, audit log)                                            | Working, tested                                                                        |
+| Service requests: resident submit / track / reply / photos                                                                              | Working, tested                                                                        |
+| Service requests: staff queue, triage, assign, status, notes, messages, completion photos                                               | Working, tested                                                                        |
+| Staff dashboard (role-aware queue, metrics, notifications, audit log)                                                                   | Working                                                                                |
+| Municipal website: per-city branding, services, departments, announcements, accessibility and privacy statements, custom-domain routing | Working, tested                                                                        |
+| Website CMS: pages from reusable blocks, preview, draft → review → publish, scheduling, archive, menu, announcements                    | Working, tested. Missing: documents, meetings, homepage/footer editing                 |
+| Administration: request categories and routing, city settings, staff access and role reference                                          | Working, tested                                                                        |
+| Records management: retention schedule, legal holds, approved disposition, record and audit-log export                                  | Working, tested                                                                        |
+| Resident email                                                                                                                          | Queued durably with retry; **no real provider connected, so nothing is actually sent** |
+| OpenAPI document                                                                                                                        | Generated from code: [docs/openapi.json](docs/openapi.json)                            |
 
-Not built yet: website CMS, AI knowledge engine, permitting, resident mobile app, platform
-administration, photo uploads, resident accounts, real email delivery, MFA / managed identity.
-See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md).
+Not built yet: AI knowledge engine, permitting, resident mobile app, platform administration,
+resident accounts, MFA / managed identity, any deployment. See
+[docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md).
+
+**Compliance:** MunicipalOS holds no certification or attestation. The structure for government
+requirements (accessibility, security controls, records retention, privacy) and its honest
+status are in [docs/COMPLIANCE.md](docs/COMPLIANCE.md).
 
 ## Quick start
 
@@ -84,6 +92,7 @@ progress.
 [Architecture](docs/ARCHITECTURE.md) · [Product requirements](docs/PRODUCT_REQUIREMENTS.md) ·
 [Database](docs/DATABASE_SCHEMA.md) · [API](docs/API_SPECIFICATION.md) ·
 [Security](docs/SECURITY.md) · [AI governance](docs/AI_GOVERNANCE.md) ·
+[Compliance](docs/COMPLIANCE.md) ·
 [Roadmap & backlog](docs/DEVELOPMENT_ROADMAP.md) · [Deployment](docs/DEPLOYMENT.md) ·
 [Testing](docs/TESTING.md) · [Decisions](docs/DECISIONS.md)
 

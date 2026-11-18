@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Alert, Button, Field } from "@municipalos/ui";
 import type { ActionState, AssignableStaff, AvailableTransition } from "@/lib/types";
-import { assignAction, changeStatusAction, commentAction } from "./actions";
+import { assignAction, changeStatusAction, commentAction, photoAction } from "./actions";
 
 const initial: ActionState = {};
 
@@ -163,6 +163,35 @@ export function CommentForm({
       </Field>
       <Button type="submit" variant="secondary" disabled={pending}>
         Add
+      </Button>
+    </form>
+  );
+}
+
+export function PhotoForm({ slug, id }: { slug: string; id: string }) {
+  const [state, action, pending] = useActionState(photoAction.bind(null, slug, id), initial);
+  return (
+    <form action={action} className="space-y-4">
+      <Result state={state} />
+      <Field
+        id="photo"
+        label="Add a photo"
+        hint="For example, the completed repair. JPEG, PNG or WebP, up to 15 MB. Shown to the resident; location data is removed."
+      >
+        {(p) => (
+          <input
+            {...p}
+            key={state.success ?? "photo"}
+            name="photo"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            required
+            className="block w-full text-sm file:mr-3 file:min-h-9 file:rounded-lg file:border file:border-slate-300 file:bg-white file:px-3 file:text-sm file:font-medium"
+          />
+        )}
+      </Field>
+      <Button type="submit" variant="secondary" disabled={pending}>
+        {pending ? "Uploading…" : "Upload photo"}
       </Button>
     </form>
   );

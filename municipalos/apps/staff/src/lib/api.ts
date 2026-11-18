@@ -17,7 +17,7 @@ export class ApiError extends Error {
 }
 
 interface ApiOptions {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PUT" | "PATCH";
   json?: unknown;
   /** Set false for calls made before a session exists (login). */
   auth?: boolean;

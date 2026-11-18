@@ -15,25 +15,26 @@ because all test traffic shares one client address.
 
 ## What is covered
 
-| Layer                     | Where                            | What it proves                                                                                                                                                                                                                                                                                 |
-| ------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Unit                      | `packages/*/src/*.test.ts`       | Workflow transitions and permission checks; role definitions; validation rules; password/token primitives; tenant colour contrast                                                                                                                                                              |
-| Integration               | `apps/api/test/workflow.test.ts` | The whole request lifecycle through the real API and database: routing, idempotency, notifications, emails, history, audit, optimistic concurrency, duplicate hints, dashboard                                                                                                                 |
-| Security                  | `apps/api/test/security.test.ts` | Cross-tenant access via API (reads, writes, ids, filters, assignment, categories, tracking numbers); RLS at SQL level; append-only tables; role escalation; department scoping; platform admin has no access; data exposure on public endpoints; login throttling; rate limits; error envelope |
-| End-to-end                | `tests/e2e/*.spec.ts`            | Resident and staff journeys in a real browser; per-city branding/configuration; cross-city denial in the UI; form error handling; keyboard operation; no horizontal scroll at 360 px                                                                                                           |
-| Accessibility (automated) | `tests/e2e` via axe-core         | WCAG 2.0/2.1/2.2 A and AA rules on every resident page, the report form in its error state, and the staff login, dashboard, list, detail, notifications and audit pages                                                                                                                        |
+| Layer                     | Where                            | What it proves                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit                      | `packages/*/src/*.test.ts`       | Workflow transitions and permission checks; role definitions; validation rules; password/token primitives; tenant colour contrast                                                                                                                                                                                                                 |
+| Integration               | `apps/api/test/workflow.test.ts` | The whole request lifecycle through the real API and database: routing, idempotency, notifications, emails, history, audit, optimistic concurrency, duplicate hints, dashboard                                                                                                                                                                    |
+| Security                  | `apps/api/test/security.test.ts` | Cross-tenant access via API (reads, writes, ids, filters, assignment, categories, tracking numbers); RLS at SQL level; append-only tables; role escalation; department scoping; platform admin has no access; data exposure on public endpoints; login throttling; rate limits; error envelope                                                    |
+| End-to-end                | `tests/e2e/*.spec.ts`            | Resident and staff journeys in a real browser: request workflow, photos, website content review and publishing, administration, records (retention, hold, disposition, exports), custom domains, Content-Security-Policy; per-city branding; cross-city denial in the UI; form error handling; keyboard operation; no horizontal scroll at 360 px |
+| Accessibility (automated) | `tests/e2e` via axe-core         | WCAG 2.0/2.1/2.2 A and AA rules on every resident page, the report form in its error state, and the staff login, dashboard, list, detail, notifications and audit pages                                                                                                                                                                           |
 
 Integration tests run against a real PostgreSQL database connected as the same restricted role
 used in production, so row-level security is exercised, not mocked.
 
-## Last recorded run (milestone 1)
+## Last recorded run
 
-| Suite                                               | Result    |
-| --------------------------------------------------- | --------- |
-| Unit (permissions, workflows, validation, auth, ui) | 26 passed |
-| API integration + security                          | 49 passed |
-| End-to-end + accessibility                          | 18 passed |
-| Lint, typecheck, production builds                  | clean     |
+| Suite                                                                                                  | Result     |
+| ------------------------------------------------------------------------------------------------------ | ---------- |
+| Unit (permissions, workflows, validation, auth, ui)                                                    | 39 passed  |
+| API integration + security (7 files: workflow, security, attachments, outbox, admin, records, content) | 133 passed |
+| End-to-end + accessibility (7 specs)                                                                   | 32 passed  |
+| End-to-end against production builds (`CI=1`)                                                          | 32 passed  |
+| Lint, typecheck, production builds, `pnpm audit` (high/critical)                                       | clean      |
 
 ## Seeded accounts
 
@@ -47,11 +48,13 @@ All synthetic. Password for every account: printed by `pnpm db:seed` (developmen
 | tom.becker@cedarridge.example      | Cedar Ridge    | Department Employee (Parks & Recreation)        |
 | helen.cho@cedarridge.example       | Cedar Ridge    | City Clerk                                      |
 | avery.stone@cedarridge.example     | Cedar Ridge    | Read-Only Auditor                               |
+| nora.kim@cedarridge.example        | Cedar Ridge    | Content Editor                                  |
 | grace.okafor@marlowsprings.example | Marlow Springs | Municipal Administrator                         |
 | ben.hale@marlowsprings.example     | Marlow Springs | Department Employee (Public Works)              |
 | ops@municipalos.example            | —              | Platform administrator, no municipal membership |
 
-Sample tracking numbers: `CR-SAMP0001` … `CR-SAMP0008`, `MS-SAMP0001` … `MS-SAMP0003`.
+Sample tracking numbers: `CR-SAMP0001` … `CR-SAMP0009` (`0009` was closed long ago, for retention
+demos), `MS-SAMP0001` … `MS-SAMP0003`. Seeded website pages: `/cedar-ridge/p/about`.
 
 ## Manual accessibility testing
 

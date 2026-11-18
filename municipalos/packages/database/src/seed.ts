@@ -193,6 +193,12 @@ const MUNICIPALITIES: MunicipalitySeed[] = [
         title: "Internal Auditor",
         role: "auditor",
       },
+      {
+        email: "nora.kim@cedarridge.example",
+        name: "Nora Kim",
+        title: "Communications Coordinator",
+        role: "content_editor",
+      },
     ],
     announcements: [
       {
@@ -295,6 +301,18 @@ const MUNICIPALITIES: MunicipalitySeed[] = [
         locationText: "Cedar Ridge Sports Complex, field 2",
         assignee: "tom.becker@cedarridge.example",
         daysAgo: 2,
+      },
+      {
+        // Closed long ago: demonstrates records past their retention period.
+        reference: "CR-SAMP0009",
+        category: "streetlight",
+        status: "closed",
+        description: "Streetlight out in front of the fire station.",
+        locationText: "20 W 200 N",
+        reporterName: "Dale Archer",
+        reporterEmail: "dale.archer@residents.example",
+        assignee: "priya.nair@cedarridge.example",
+        daysAgo: 520,
       },
     ],
   },
@@ -558,6 +576,107 @@ async function seedMunicipality(db: Db, m: MunicipalitySeed, passwordHash: strin
           createdAt: stepAt(i),
         });
       }
+    }
+
+    /* ── Website CMS: synthetic pages (two published, one draft) ── */
+    const pageAuthor = userIds.get(m.staff[0]!.email)!;
+    const seededPages: {
+      slug: string;
+      title: string;
+      showInNav: boolean;
+      status: "published" | "draft";
+      blocks: unknown[];
+    }[] = [
+      {
+        slug: "about",
+        title: `About ${m.name}`,
+        showInNav: true,
+        status: "published",
+        blocks: [
+          { type: "heading", id: "b1", level: 2, text: "Our community" },
+          {
+            type: "text",
+            id: "b2",
+            text: `${m.name} is a fictional municipality used to demonstrate MunicipalOS.\n\nCity offices are open to the public during business hours, and most services are also available online.`,
+          },
+          {
+            type: "contact",
+            id: "b3",
+            name: `${m.name} City Hall`,
+            phone: m.contact.phone,
+            email: m.contact.email,
+            address: m.contact.address,
+            hours: m.contact.hours,
+          },
+          { type: "service_links", id: "b4" },
+        ],
+      },
+      {
+        slug: "public-meetings",
+        title: "Public meetings",
+        showInNav: false,
+        status: "published",
+        blocks: [
+          {
+            type: "text",
+            id: "b1",
+            text: "Council meetings are open to everyone. Agendas are posted at City Hall before each meeting.",
+          },
+          {
+            type: "callout",
+            id: "b2",
+            tone: "info",
+            title: "Need an accommodation?",
+            text: "Contact the clerk's office at least two business days before the meeting.",
+          },
+          {
+            type: "links",
+            id: "b3",
+            title: "Related",
+            items: [{ label: "Contact city departments", url: `/${m.slug}/departments` }],
+          },
+        ],
+      },
+      {
+        slug: "winter-parking",
+        title: "Winter parking rules",
+        showInNav: false,
+        status: "draft",
+        blocks: [
+          {
+            type: "text",
+            id: "b1",
+            text: "Draft: on-street parking is restricted overnight during snow events.",
+          },
+        ],
+      },
+    ];
+    for (const [i, pg] of seededPages.entries()) {
+      const [page] = await tx
+        .insert(s.websitePages)
+        .values({
+          ...t,
+          slug: pg.slug,
+          title: pg.title,
+          showInNav: pg.showInNav,
+          navOrder: i,
+          createdByUserId: pageAuthor,
+        })
+        .returning();
+      const published = pg.status === "published";
+      await tx.insert(s.contentRevisions).values({
+        ...t,
+        pageId: page!.id,
+        revisionNumber: 1,
+        title: pg.title,
+        blocks: pg.blocks,
+        status: pg.status,
+        authorUserId: pageAuthor,
+        submittedAt: published ? daysAgo(12) : null,
+        reviewerUserId: published ? pageAuthor : null,
+        reviewedAt: published ? daysAgo(11) : null,
+        publishedAt: published ? daysAgo(11) : null,
+      });
     }
   });
   return muni;

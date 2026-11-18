@@ -82,6 +82,8 @@ test.describe("municipal website", () => {
     "/cedar-ridge/requests",
     "/cedar-ridge/requests/CR-SAMP0004",
     "/cedar-ridge/departments",
+    "/cedar-ridge/accessibility",
+    "/cedar-ridge/privacy",
     "/marlow-springs",
   ]) {
     test(`no automated accessibility violations on ${path}`, async ({ page }) => {

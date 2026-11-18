@@ -10,10 +10,18 @@ const envSchema = z.object({
     .min(1)
     .max(24 * 30)
     .default(12),
+  SESSION_IDLE_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(24 * 60)
+    .default(30),
   EMAIL_TRANSPORT: z.enum(["console"]).default("console"),
   /** Public origin of the resident website, used to build tracking links in notifications. */
   /** Multiplies every rate limit. Leave at 1 except for automated end-to-end test runs. */
   RATE_LIMIT_SCALE: z.coerce.number().int().min(1).max(1000).default(1),
+  /** Directory for uploaded files (local-disk storage driver). */
+  STORAGE_DIR: z.string().min(1).default("../../.data/uploads"),
   PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
 });
 

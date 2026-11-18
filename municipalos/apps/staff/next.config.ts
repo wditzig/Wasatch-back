@@ -11,6 +11,8 @@ const config: NextConfig = {
   // Workspace packages ship TypeScript source; Next compiles them.
   transpilePackages: ["@municipalos/ui", "@municipalos/validation", "@municipalos/workflows"],
   poweredByHeader: false,
+  // Photo uploads pass through server actions (up to 4 photos of 15 MB each).
+  experimental: { serverActions: { bodySizeLimit: "64mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

@@ -69,6 +69,25 @@ describe("authentication", () => {
     expect((await t.api("GET", "/v1/auth/me", { token })).status).toBe(401);
   });
 
+  it("ends sessions that have been idle longer than the limit", async () => {
+    const res = await t.api("POST", "/v1/auth/login", {
+      json: { email: USERS.crPwTech, password: "municipalos-dev-password" },
+    });
+    const token = res.body.token as string;
+    expect((await t.api("GET", "/v1/auth/me", { token })).status).toBe(200);
+    await t.handle.db
+      .update(schema.sessions)
+      .set({ lastSeenAt: new Date(Date.now() - 31 * 60_000) })
+      .where(sql`id = (select id from sessions order by created_at desc limit 1)`);
+    expect((await t.api("GET", "/v1/auth/me", { token })).status).toBe(401);
+    // Still rejected afterwards: the session was revoked, not merely skipped.
+    await t.handle.db
+      .update(schema.sessions)
+      .set({ lastSeenAt: new Date() })
+      .where(sql`id = (select id from sessions order by created_at desc limit 1)`);
+    expect((await t.api("GET", "/v1/auth/me", { token })).status).toBe(401);
+  });
+
   it("never returns password hashes", async () => {
     const me = await t.api("GET", "/v1/auth/me", { token: await t.login(USERS.crAdmin) });
     expect(JSON.stringify(me.body)).not.toMatch(/scrypt|passwordHash|password_hash/);
@@ -319,7 +338,18 @@ describe("tenant isolation enforced by the database (row-level security)", () =>
     const cr = await idOf("cedar-ridge");
     const run = (q: ReturnType<typeof sql>) =>
       withTenant(t.handle.db, { municipalityId: cr }, (tx) => tx.execute(q));
-    await expect(run(sql`update staff_memberships set status = 'active'`)).rejects.toThrow();
+    // Role/department/status changes are allowed (staff administration); moving a membership to
+    // another person or creating/deleting memberships is not.
+    await expect(run(sql`update staff_memberships set user_id = user_id`)).rejects.toThrow();
+    await expect(
+      run(sql`update staff_memberships set municipality_id = municipality_id`),
+    ).rejects.toThrow();
+    await expect(run(sql`delete from staff_memberships`)).rejects.toThrow();
+    await expect(
+      run(
+        sql`insert into staff_memberships (municipality_id, user_id, role_id) select municipality_id, user_id, role_id from staff_memberships limit 1`,
+      ),
+    ).rejects.toThrow();
     await expect(
       run(
         sql`insert into role_permissions (municipality_id, role_id, permission) select municipality_id, id, 'audit.read' from roles`,
@@ -451,6 +481,7 @@ describe("public surface", () => {
       "description",
       "isOpen",
       "locationText",
+      "photos",
       "reference",
       "status",
       "statusLabel",

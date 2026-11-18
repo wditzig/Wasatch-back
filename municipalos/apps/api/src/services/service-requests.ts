@@ -8,6 +8,7 @@ import {
   ilike,
   inArray,
   isNull,
+  legalHolds,
   moduleEntitlements,
   municipalitySettings,
   ne,
@@ -46,6 +47,7 @@ import {
 import type { AppDeps, Municipality, StaffContext } from "../context";
 import { AppError, conflict, forbidden, notFound, unprocessable } from "../errors";
 import { recordAudit } from "../lib/audit";
+import { listPhotos } from "./attachments";
 import { generateReference } from "../lib/reference";
 import {
   deliverQueuedEmails,
@@ -291,6 +293,10 @@ export async function getPublicRequest(
       .where(and(eq(events.requestId, request.id), eq(events.visibility, "public")))
       .orderBy(asc(events.seq));
 
+    const photos = (await listPhotos(tx, request.id)).map(
+      ({ uploadedByName: _name, ...photo }) => photo,
+    );
+
     // Deliberately excludes reporter contact details, assignee and internal notes.
     return {
       reference: request.reference,
@@ -303,6 +309,7 @@ export async function getPublicRequest(
       departmentName: request.departmentName,
       createdAt: iso(request.createdAt),
       updatedAt: iso(request.updatedAt),
+      photos,
       timeline: timeline.map((e) => ({
         id: e.id,
         type: e.type,
@@ -542,6 +549,18 @@ export async function getRequestDetail(
       .orderBy(desc(requests.createdAt))
       .limit(5);
 
+    const activeHolds = await tx
+      .select({ id: legalHolds.id })
+      .from(legalHolds)
+      .where(
+        and(
+          eq(legalHolds.recordType, "service_request"),
+          eq(legalHolds.recordId, request.id),
+          isNull(legalHolds.releasedAt),
+        ),
+      )
+      .limit(1);
+
     const transitions = availableTransitions(
       serviceRequestWorkflow,
       request.status,
@@ -559,6 +578,10 @@ export async function getRequestDetail(
       },
       resolvedAt: isoOrNull(request.resolvedAt),
       closedAt: isoOrNull(request.closedAt),
+      photos: await listPhotos(tx, request.id),
+      canAddPhotos: staff.permissions.has("service_requests.comment"),
+      onLegalHold: activeHolds.length > 0,
+      dispositionedAt: isoOrNull(request.dispositionedAt),
       events: history.map((e) => ({
         id: e.id,
         type: e.type,

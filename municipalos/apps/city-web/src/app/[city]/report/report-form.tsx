@@ -17,6 +17,7 @@ const ERROR_ORDER = [
   "categoryId",
   "description",
   "locationText",
+  "photos",
   "reporterName",
   "reporterEmail",
   "reporterPhone",
@@ -226,6 +227,25 @@ export function ReportForm({ city, categories, initialCategoryId, contactRequire
           </p>
         </div>
       </div>
+
+      <Field
+        id="photos"
+        label="Photos"
+        optional
+        hint="Up to 4 photos (JPEG, PNG or WebP, 15 MB each). Location data stored in the photo is removed."
+        error={errors.photos}
+      >
+        {(p) => (
+          <input
+            {...p}
+            name="photos"
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp"
+            className="block w-full text-base file:mr-3 file:min-h-11 file:rounded-lg file:border file:border-slate-400 file:bg-white file:px-4 file:text-sm file:font-medium"
+          />
+        )}
+      </Field>
 
       <fieldset className="space-y-4">
         <legend className="text-base font-semibold text-ink">
